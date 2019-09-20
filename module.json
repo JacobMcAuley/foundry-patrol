@@ -1,0 +1,13 @@
+{
+    "name": "foundry-patrol",
+    "title": "Foundry Token Patroller",
+    "description": "Gives your token that patrol like appearance!",
+    "version": "0.0",
+    "author": "Jacob McAuley",
+    "scripts": [
+        "./main.js"
+    ],
+    "url": "https://github.com/JacobMcAuley/foundry-patrol",
+    "manifest": "",
+    "download": ""
+}
