@@ -1,17 +1,24 @@
 class Patrols{
-    constructor(data = null){
-        if(data == null)
+    constructor(debug = false){
+        this.debug = debug;
+        if(localStorage.getItem('patrol') == null)
         {
+            if(DEBUG)
+                console.log("Foundry-Patrol: Generating new storage")
             localStorage.setItem('patrol', JSON.stringify({}))
             this.patrolRoute = JSON.parse(localStorage.getItem('patrol'));
         }
         else
         {
+            if(DEBUG)
+                console.log("Foundry-Patrol: Loading old storage")
             this.patrolRoute = JSON.parse(localStorage.getItem('patrol'));
         }
     }
     
     saveData(){
+        if(DEBUG)
+            console.log("Foundry-Patrol: Saving data")
         localStorage.setItem('patrol', JSON.stringify(this.patrolRoute));
     }
 
@@ -20,7 +27,7 @@ class Patrols{
     _generateScene(){
         let sceneId = canvas.id;
         this.patrolRoute[sceneId] = [];
-        return true
+        return true;
     }
 
     _generateToken(tokenId){ // promise?
@@ -39,7 +46,7 @@ class Patrols{
             try{
                 let sceneId = canvas.id; 
                 if(this.patrolRoute[sceneId] == null){
-                    await _generateScene()
+                    this._generateScene();
                     resolve(true);
                 }
                 resolve(false);
@@ -54,11 +61,13 @@ class Patrols{
     _doesTokenExist(tokenId){
         return new Promise(async (resolve, reject) => {
             try{
-                if(this.patrolRoute[sceneId].length >= tokenId){
+                let sceneId = canvas.id;
+                if(this.patrolRoute[sceneId].length >= (tokenId+1)){
                     resolve(true);
                 }
                 else{
                     this._generateToken(tokenId)
+                    resolve(true);
                 }
             } 
             catch(error){
@@ -68,9 +77,10 @@ class Patrols{
         })
     }
 
-    addTokenPatrol(tokenId, plots){ // Token id not needed? Relational?
+    _addTokenPatrol(tokenId, plots){ // Token id not needed? Relational?
         return new Promise((resolve, reject) => {
             try{
+                let sceneId = canvas.id;
                 let plotPoints = this.patrolRoute[sceneId][tokenId].plots
                 
                 plotPoints.push({x: plots.x, y: plots.y})
@@ -85,28 +95,17 @@ class Patrols{
     }
     
     async generateRoute(tokenId, plots){
+        tokenId -= 1;
         await this._doesSceneExist();
         await this._doesTokenExist(tokenId);
-        await this.addTokenPatrol(tokenId, plots);
+        await this._addTokenPatrol(tokenId, plots);
+        this.saveData()
     }
 
     getFullSet(){
         console.log(this.patrolRoute);
     }
 
-}
-
-
-
-
-
-
-
-
-var test = {
-    "qbolHL1dtyc1tMig" : [
-        
-    ]
 }
 
 Hooks.on('ready', async function(app, data, html){
@@ -127,36 +126,6 @@ Hooks.on('ready', async function(app, data, html){
     }
     
     
-    //pathing.qbolHL1dtyc1tMig[tokenOne] = {}
-    
     await tokenOne.setPosition(plot.x, plot.y);
     tokenOne.update("qbolHL1dtyc1tMig", plot)
-
-    //test.qbolHL1dtyc1tMig.push(tokenOne)
-
-    //test.qbolHL1dtyc1tMig.find(p => p === tokenOne)    
 })
-
-
-/*
-
-localStorage.setItem('patrol', JSON.stringify(test));
-
-var tokenTest = JSON.parse(localStorage.getItem('patrol'));
-
-console.log(tokenTest);
-{
-    sceneId : 
-    [
-        tokenId :
-        {
-            plots = [{x,y}, {x,y}]
-            inverse = true/false
-            enabled = true/false
-        }
-    ]
-
-}
-
-
-*/
