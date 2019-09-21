@@ -108,24 +108,26 @@ class Patrols{
 
 }
 
+
+
+
+Hooks.on('renderTokenHUD', (app, html, data) => {
+    console.log("Test");
+    const importButton = $('<div class="control-icon visibility"><img src="icons/svg/clockwork.svg" width="36" height="36" title="mark-point"></div>');
+    const importButton2 = $('<div class="control-icon visibility"><i class="fas fa-walking title="start-patrol""></i></div>');
+
+    html.find('.left').append(importButton);
+    html.find('.left').append(importButton2);
+    importButton.click(ev => {
+        console.log(app.object.id)
+        console.log(data);
+        playlistPrompt.render(true);
+    });
+    importButton2.click(ev => {
+        playlistPrompt.render(true);
+    });
+});
+
 Hooks.on('ready', async function(app, data, html){
 
-    let tokenLayer = canvas.tokens;
-
-    let tokenOne = tokenLayer.ownedTokens[0];
-    let tokenTwo = tokenLayer.ownedTokens[1];
-    
-    
-    let tokenTrans = tokenOne.transform;
-    
-    console.log(tokenTrans.position.local);
-    
-    let plot = {
-        x: 1500,
-        y: 1800
-    }
-    
-    
-    await tokenOne.setPosition(plot.x, plot.y);
-    tokenOne.update("qbolHL1dtyc1tMig", plot)
 })
