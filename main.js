@@ -1,3 +1,23 @@
+var GLOBALROUTEVAR = null;
+
+let pointAdded = new Dialog({
+    title: "Point Added",
+    content: "<p>A point has been added to the route</p>",
+    buttons: {
+     one: {
+      icon: '<i class="fas fa-check"></i>',
+      label: "Close",
+      callback: () => console.log("Close")
+     }
+    },
+    default: "Ack",
+    close: () => console.log("Playlist-Importer: Prompt Closed")
+});
+
+
+
+
+
 class Patrols{
     constructor(debug = false){
         this.debug = debug;
@@ -34,7 +54,7 @@ class Patrols{
         let sceneId = canvas.id;
         let tokenRoutes = this.patrolRoute[sceneId]
         let tokenInfo = {
-            plots: [plots],
+            plots: [],
             inverse: true,
             enabled: false
         }
@@ -94,6 +114,33 @@ class Patrols{
         })
     }
     
+    async _navigateToNextPoint(plot){
+        let token = canvas.tokens.ownedTokens[0];
+        await token.setPosition(plot.x, plot.y);
+        token.update(canvas.id, plot)
+    }
+
+    _getPlotsFromId(tokenId){
+        tokenId -= 1;
+        let sceneId = canvas.id;
+        return this.patrolRoute[sceneId][tokenId].plots   
+    }
+
+    async startPatrol(data){
+        let token = data.object;
+        let patrolPoints = this._getPlotsFromId(token.id);
+        for(let patrolStop in patrolPoints){
+            console.log(patrolStop);
+        }
+        await this._navigateToNextPoint(patrolPoints[1]);
+    }
+
+    addPlotPoint(data){
+        let token = data.object;
+        this.generateRoute(token.id , {x: token.transform.position._x, y: token.transform.position._y,})
+        console.log(token);
+    }
+
     async generateRoute(tokenId, plots){
         tokenId -= 1;
         await this._doesSceneExist();
@@ -102,7 +149,7 @@ class Patrols{
         this.saveData()
     }
 
-    getFullSet(){
+    get getFullSet(){
         console.log(this.patrolRoute);
     }
 
@@ -119,15 +166,15 @@ Hooks.on('renderTokenHUD', (app, html, data) => {
     html.find('.left').append(importButton);
     html.find('.left').append(importButton2);
     importButton.click(ev => {
-        console.log(app.object.id)
-        console.log(data);
-        playlistPrompt.render(true);
+        GLOBALROUTEVAR.addPlotPoint(app);
+        pointAdded.render(true);
     });
     importButton2.click(ev => {
-        playlistPrompt.render(true);
+        GLOBALROUTEVAR.startPatrol(app)
+        //playlistPrompt.render(true);
     });
 });
 
 Hooks.on('ready', async function(app, data, html){
-
+    GLOBALROUTEVAR = new Patrols();
 })
