@@ -10,6 +10,6 @@
         "./config/config.js"
     ],
     "url": "https://github.com/JacobMcAuley/foundry-patrol",
-    "manifest": "https://raw.githubusercontent.com/JacobMcAuley/foundry-patrol/master/module.json?token=AC4Y5X76BC55LJSK2M5UBIS5SL7NI",
-    "download": ""
+    "manifest": "https://raw.githubusercontent.com/JacobMcAuley/foundry-patrol/master/module.json?token=AC4Y5X7IPXH6YPHJDSQAWPS5SL7SI",
+    "download": "https://github.com/JacobMcAuley/foundry-patrol/archive/master.zip"
 }
