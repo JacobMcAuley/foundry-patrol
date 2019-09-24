@@ -5,7 +5,8 @@
     "version": "0.0",
     "author": "Jacob McAuley",
     "scripts": [
-        "./main.js"
+        "./main.js",
+        "./hooks.js"
     ],
     "url": "https://github.com/JacobMcAuley/foundry-patrol",
     "manifest": "",
