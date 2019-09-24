@@ -1,7 +1,8 @@
+Hooks.on('init', () => game.settings.register(PATROLCONFIG.module, PATROLCONFIG.key, PATROLCONFIG.settings));
+
 Hooks.on('renderTokenHUD', (app, html, data) => tokenHUDPatrol(app,html,data));
 
 Hooks.on('canvasInit', () => {
-    TokenHUD.defaultOptions.template = "html/HUD.html"
     Token.prototype.routes = null;
     let tokens = canvas.tokens.ownedTokens;
     for(let i = 0; i < tokens.length; i++){
