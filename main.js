@@ -1,7 +1,3 @@
-window.addEventListener("unhandledrejection", function(promiseRejectionEvent) { 
-    console.log("Test");
-});
-
 let pointAdded = new Dialog({
     title: "Point Added",
     content: "<p>A point has been added to the route</p>",
@@ -24,16 +20,21 @@ class Patrols{
         this.patrolRoute = {};
         this.token = token;
         this.delayPeriod = 2000;
-        console.log("Foundry-Patrol: Creating");
+        if(this.debug) console.log("Foundry-Patrol: Creating");
     }
 
-    _generateScene(){
-        this.patrolRoute[this.sceneId] = {
-            plots: [],
-            inverse: true,
-            enabled: false
+    addPlotPoint(data){
+        this.generateRoute({x: this.token.transform.position._x, y: this.token.transform.position._y,});
+    }
+
+    async generateRoute(plots){
+        try{
+            await this._doesSceneExist();
+            await this._addTokenPatrol(plots);
+        }catch(error){
+            if(this.debug) console.log(`Foundry-Patrol: ${error}`);
+            return error;
         }
-        return true;
     }
 
     _doesSceneExist(){
@@ -52,15 +53,23 @@ class Patrols{
         })
     }
 
+    _generateScene(){
+        this.patrolRoute[this.sceneId] = {
+            plots: [],
+            inverse: true,
+            enabled: false
+        }
+        return true;
+    }
+
+
+
     _addTokenPatrol(plots){ // Token id not needed? Relational?
         return new Promise((resolve, reject) => {
             try{
-                console.log(this.patrolRoute[this.sceneId]);
-
                 let plotPoints = this.patrolRoute[this.sceneId].plots;
-                
                 plotPoints.push({x: plots.x, y: plots.y});
-
+                if(this.debug) console.log(this.patrolRoute[this.sceneId]);
                 resolve(true);
             } 
             catch(error){
@@ -69,11 +78,27 @@ class Patrols{
 
         })
     }
-    
+
+    async startPatrol(userDelayPeriod){
+        (userDelayPeriod == 0) ? this.delayPeriod: this.delayPeriod = userDelayPeriod * 1000; //Defaults to previous.
+        this.isWalking = !this.isWalking;
+        let patrolPoints = this.getPlotsFromId;
+
+        if(!patrolPoints){
+            if(this.debug) console.log("Foundry-Patrol: Patrol Points not set.");
+            return false;
+        }
+            
+        while(this.isWalking && patrolPoints)
+        {
+            await this._navigationLoop();
+        }
+    }
+
     async _navigationLoop()
     {
         const sleep = m => new Promise(r => setTimeout(r, m));
-        let patrolPoints = this._getPlotsFromId();
+        let patrolPoints = this.getPlotsFromId;
 
         for(let i = 0; i < patrolPoints.length; i++){
             await sleep(this.delayPeriod);
@@ -91,50 +116,17 @@ class Patrols{
             await this.token.update(this.sceneId, plot);
         }
         catch(error){
-            console.log(`Foundry-Patrol: Error in token navigation\n${error}`);
+            if(this.debug) console.log(`Foundry-Patrol: Error in token navigation\n${error}`);
         }
     }
 
-    _getPlotsFromId(){
+    get getPlotsFromId(){
         try{
             return this.patrolRoute[this.sceneId].plots; 
         }
         catch(error){
-            if(this.debug)
-                console.log(`Foundry-Patrol: ERROR -> ${error}`);
+            if(this.debug) console.log(`Foundry-Patrol: ERROR -> ${error}`);
             return false;
-        }
-    }
-
-    
-    async startPatrol(userDelayPeriod){
-        (userDelayPeriod == 0) ? this.delayPeriod: this.delayPeriod = userDelayPeriod * 1000; //Defaults to previous.
-        this.isWalking = !this.isWalking;
-        let patrolPoints = this._getPlotsFromId();
-
-        if(!patrolPoints){
-            console.log("Foundry-Patrol: Patrol Points not set.");
-            return false;
-        }
-            
-        while(this.isWalking && patrolPoints)
-        {
-            await this._navigationLoop();
-        }
-    }
-
-    addPlotPoint(data){
-        this.generateRoute({x: this.token.transform.position._x, y: this.token.transform.position._y,});
-        console.log(this.token);
-    }
-
-    async generateRoute(plots){
-        try{
-            await this._doesSceneExist();
-            await this._addTokenPatrol(plots);
-        }catch(error){
-            console.log(error);
-            return error;
         }
     }
 
@@ -146,7 +138,7 @@ class Patrols{
         return this.delayPeriod/1000;
     }
 
-    getFullSet(){
+    get getAllRoutes(){
         return this.patrolRoute;
     }
 
@@ -155,7 +147,7 @@ class Patrols{
 function tokenHUDPatrol(app, html, data){
     let token = app.object;
     let isPatrolling = token.routes.isPatrolling;
-    console.log(isPatrolling);
+
     const plotDiv = $(`
         <div class="plotDiv" style="display: flex; flex-direction: row; justify-content: center; align-items:center;">\
         </div>
@@ -181,26 +173,33 @@ function tokenHUDPatrol(app, html, data){
     var patrolWalkHUD = $(`<i class="fas fa-walking title control-icon"></i>`)
     
     if(isPatrolling == true){
-        console.log("Here");
         patrolWalkHUD = $(`<i class="fas fa-times title control-icon"></i>`)
     }
     
     const patrolDelayHUD = $(`<input class="control-icon" type="text" id="patrolWait" value=${token.routes.getDelayPeriod} name="patrolWait">`)
-    //<i class="fas fa-times"></i>
-    
-    console.log(token);
-    
-    html.find('.left').append(plotDiv);
-    html.find('.plotDiv').append(addPlotPoint);
-    html.find('.left').append(patrolDiv);
-    html.find('.patrolDiv').append(patrolWalkHUD);
-    html.find('.patrolDiv').append(patrolDelayHUD);
-    addPlotPoint.click(ev => {
-        token.routes.addPlotPoint(app);
-        pointAdded.render(true);
-    });
-    patrolWalkHUD.click(ev => {
-        let delayPeriod = document.getElementById("patrolWait").value;
-        token.routes.startPatrol(delayPeriod);
-    });
+
+    if(game.user.isGM || game.settings.get("foundry-patrol", "enablePlayerPatrol"))
+    {
+        html.find('.left').append(plotDiv);
+        html.find('.plotDiv').append(addPlotPoint);
+        html.find('.left').append(patrolDiv);
+        html.find('.patrolDiv').append(patrolWalkHUD);
+        html.find('.patrolDiv').append(patrolDelayHUD);
+        addPlotPoint.click(ev => {
+            token.routes.addPlotPoint(app);
+            pointAdded.render(true);
+        });
+
+        patrolWalkHUD.click(ev => {
+            var className = ev.target.getAttribute("class");
+            if(className == "fas fa-walking title control-icon"){
+                ev.target.className = "fas fa-times title control-icon"
+            }else{
+                ev.target.className = "fas fa-walking title control-icon"
+            }
+            let delayPeriod = document.getElementById("patrolWait").value;
+            token.routes.startPatrol(delayPeriod);
+        });
+
+    }
 }
