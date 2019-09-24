@@ -5,11 +5,11 @@
     "version": "0.0",
     "author": "Jacob McAuley",
     "scripts": [
-        "./main.js",
-        "./hooks.js",
+        "./src/main.js",
+        "./src/hooks.js",
         "./config/config.js"
     ],
     "url": "https://github.com/JacobMcAuley/foundry-patrol",
-    "manifest": "",
+    "manifest": "https://raw.githubusercontent.com/JacobMcAuley/foundry-patrol/master/module.json?token=AC4Y5X76BC55LJSK2M5UBIS5SL7NI",
     "download": ""
 }
