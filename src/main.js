@@ -19,6 +19,10 @@ class Patrols{
         this.sceneId = canvas.id;
         this.patrolRoute = {};
         this.token = token;
+        this.lastRecordedLocation = {
+            x : this.token.position._x,
+            y : this.token.position._y
+        }
         this.delayPeriod = 2000;
         if(this.debug) console.log("Foundry-Patrol: Creating");
     }
@@ -80,6 +84,7 @@ class Patrols{
     }
 
     async startPatrol(userDelayPeriod){
+        this._updatelastRecordedLocation();
         (userDelayPeriod == 0) ? this.delayPeriod: this.delayPeriod = userDelayPeriod * 1000; //Defaults to previous.
         this.isWalking = !this.isWalking;
         let patrolPoints = this.getPlotsFromId;
@@ -101,22 +106,45 @@ class Patrols{
         let patrolPoints = this.getPlotsFromId;
 
         for(let i = 0; i < patrolPoints.length; i++){
+            console.log("Quick")
             await sleep(this.delayPeriod);
-            if(this.isWalking && !game.paused){
+            if(this.isWalking && !game.paused && this._validatePatrol()){
                 await this._navigateToNextPoint(patrolPoints[i]);
             }
             else{
+                this.isWalking = false;
                 break;
             }
         }
     }
 
+    _validatePatrol(){
+        let currentPosition = this.token.position;
+        if(this.lastRecordedLocation.x != currentPosition._x || this.lastRecordedLocation.y != currentPosition._y){
+            return false;
+        }
+        return true;
+    }
+
     async _navigateToNextPoint(plot){
         try{
             await this.token.update(this.sceneId, plot);
+            this._updatelastRecordedLocation(plot);
         }
         catch(error){
             if(this.debug) console.log(`Foundry-Patrol: Error in token navigation\n${error}`);
+        }
+    }
+
+    _updatelastRecordedLocation(futurePlot){
+        if(futurePlot != undefined){
+            this.lastRecordedLocation.x = futurePlot.x;
+            this.lastRecordedLocation.y = futurePlot.y;
+        }
+        else{
+            let currentPosition = this.token.position;
+            this.lastRecordedLocation.x = currentPosition._x;
+            this.lastRecordedLocation.y = currentPosition._y;
         }
     }
 
