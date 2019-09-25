@@ -13,6 +13,10 @@ Hooks.on('canvasInit', () => {
     }
 });
 
-Hooks.on('createToken', async function(parentId, createData, option){
-    parentId.routes = new Patrols(parentId);
+Hooks.on('createToken', function(token, sceneId, data){
+    token.routes = new Patrols(token);
 })
+
+Hooks.on("preCreateToken", (actorId, createData, options) => {
+    setProperty(options, "flags.foundry-patrol.routes", {});
+});
