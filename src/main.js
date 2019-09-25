@@ -17,11 +17,11 @@ class Patrols{
         this.debug = debug;
         this.isWalking = false;
         this.sceneId = canvas.id;
-        this.patrolRoute = {};
         this.token = token;
+        this.patrolRoute = this.token.data.flags['foundry-patrol'].routes;
         this.lastRecordedLocation = {
-            x : this.token.position._x,
-            y : this.token.position._y
+            x : getProperty(this.token.data, "x"),
+            y : getProperty(this.token.data, "y")
         }
         this.delayPeriod = 2000;
         if(this.debug) console.log("Foundry-Patrol: Creating");
@@ -35,6 +35,7 @@ class Patrols{
         try{
             await this._doesSceneExist();
             await this._addTokenPatrol(plots);
+            this._updateToken();
         }catch(error){
             if(this.debug) console.log(`Foundry-Patrol: ${error}`);
             return error;
@@ -61,14 +62,15 @@ class Patrols{
         this.patrolRoute[this.sceneId] = {
             plots: [],
             inverse: true,
-            enabled: false
+            enabled: false,
+            lastPos: 0
         }
         return true;
     }
 
 
 
-    _addTokenPatrol(plots){ // Token id not needed? Relational?
+    _addTokenPatrol(plots){ 
         return new Promise((resolve, reject) => {
             try{
                 let plotPoints = this.patrolRoute[this.sceneId].plots;
@@ -81,6 +83,11 @@ class Patrols{
             }
 
         })
+    }
+
+    _updateToken(){
+        this.token.update(this.sceneId, JSON.parse(JSON.stringify(this.token.data))) // I couldn't think of how to do this and then I saw Felix' solution. Thanks!
+        return true;    
     }
 
     async startPatrol(userDelayPeriod){
@@ -119,11 +126,17 @@ class Patrols{
     }
 
     _validatePatrol(){
-        let currentPosition = this.token.position;
-        if(this.lastRecordedLocation.x != currentPosition._x || this.lastRecordedLocation.y != currentPosition._y){
-            return false;
+        try{
+            if(this.lastRecordedLocation.x != getProperty(this.token.data, "x") || this.lastRecordedLocation.y != getProperty(this.token.data, "y")){
+                return false;
+            }
+            return true;
         }
-        return true;
+        catch(error){
+            if(this.debug) console.log(`Foundry-patrol: Error in validating patrol status -> \n ${error}`);
+            return false
+        }
+        
     }
 
     async _navigateToNextPoint(plot){
