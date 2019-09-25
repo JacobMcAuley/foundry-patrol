@@ -29,7 +29,7 @@ class Patrols{
     }
 
     addPlotPoint(data){
-        this.generateRoute({x: this.token.transform.position._x, y: this.token.transform.position._y,});
+        this.generateRoute({x: getProperty(this.token.data, "x"), y: getProperty(this.token.data, "y")});
     }
 
     async generateRoute(plots){
@@ -93,17 +93,11 @@ class Patrols{
         this._updatelastRecordedLocation();
         (userDelayPeriod == 0) ? this.delayPeriod: this.delayPeriod = userDelayPeriod * 1000; //Defaults to previous.
         this.isWalking = !this.isWalking;
-        let patrolPoints = this.getPlotsFromId;
-
-        if(!patrolPoints){
-            if(this.debug) console.log("Foundry-Patrol: Patrol Points not set.");
-            return false;
-        }
-            
-        while(this.isWalking && patrolPoints)
+        while(this.isWalking && this._validatePatrol())
         {
             await this._navigationLoop();
         }
+        this.isWalking = false;
     }
 
     async _navigationLoop()
@@ -114,28 +108,18 @@ class Patrols{
         for(let i = 0; i < patrolPoints.length; i++){
             console.log("Quick")
             await sleep(this.delayPeriod);
-            if(this.isWalking && !game.paused && this._validatePatrol()){
+            if(this.isWalking && !game.paused && !this._wasTokenMoved() && this._validatePatrol()){
                 await this._navigateToNextPoint(patrolPoints[i]);
             }
             else{
-                this.isWalking = false;
-                break;
+                if(game.paused == true){
+                    i = --i;
+                }else{
+                    this.isWalking = false;
+                    break;
+                }
             }
         }
-    }
-
-    _validatePatrol(){
-        try{
-            if(this.lastRecordedLocation.x != getProperty(this.token.data, "x") || this.lastRecordedLocation.y != getProperty(this.token.data, "y")){
-                return false;
-            }
-            return true;
-        }
-        catch(error){
-            if(this.debug) console.log(`Foundry-patrol: Error in validating patrol status -> \n ${error}`);
-            return false
-        }
-        
     }
 
     async _navigateToNextPoint(plot){
@@ -147,6 +131,30 @@ class Patrols{
             if(this.debug) console.log(`Foundry-Patrol: Error in token navigation\n${error}`);
         }
     }
+
+    _wasTokenMoved(){
+        try{
+            if(this.lastRecordedLocation.x != getProperty(this.token.data, "x") || this.lastRecordedLocation.y != getProperty(this.token.data, "y")){
+                return true;
+            }
+            return false;
+        }
+        catch(error){
+            if(this.debug) console.log(`Foundry-patrol: Error in validating patrol status -> \n ${error}`);
+            return true;
+        }
+        
+    }
+
+    _validatePatrol(){
+        let patrolPoints = this.getPlotsFromId;
+        if(!patrolPoints || patrolPoints.length == 0){
+            if(this.debug) console.log("Foundry-Patrol: Patrol Points not set.");
+            return false;
+        }
+        return true;
+    }
+
 
     _updatelastRecordedLocation(futurePlot){
         if(futurePlot != undefined){
@@ -162,19 +170,23 @@ class Patrols{
 
     deleteProcess(){
         let deletePrompt = new Dialog({
-            title: "Patrol Start",
-            content: "<p></p>",
+            title: "Patrol Delete",
             buttons: {
              one: {
               icon: '<i class="fas fa-check"></i>',
-              label: "Confirm: Delete this token's stored routes",
+              label: "Confirm: Yes, delete all",
               callback: () => this._deleteRoutes()
              }, 
              two: {
-                icon: '<i class="fas fa-check"></i>',
+                icon: '<i class="fas fa-undo"></i>',
+                label: "Undo: Yes, but undo last",
+                callback: () => this._undoLast()
+             },
+             three: {
+                icon: '<i class="fas fa-times"></i>',
                 label: "Reject: I do not want to delete",
                 callback: () => console.log("Foundry-Patrol: Mind changed, nothing deleted")
-             }
+             },
             },
             default: "Ack",
             close: () => console.log("Foundry-Patrol: Prompt Closed")
@@ -184,7 +196,14 @@ class Patrols{
 
     _deleteRoutes(){
         this.isWalking == false;
-        this.patrolRoute[this.sceneId] = {};
+        this.patrolRoute[this.sceneId].plots.length = 0;
+        console.log(this.patrolRoute);
+        this._updateToken();
+    }
+
+    _undoLast(){
+        this.patrolRoute[this.sceneId].plots.pop();
+        console.log(this.patrolRoute);
         this._updateToken();
     }
 
