@@ -12,6 +12,7 @@ let pointAdded = new Dialog({
     close: () => console.log("Foundry-Patrol: Prompt Closed")
 });
 
+
 class Patrols{
     constructor(token, debug = true){
         this.debug = debug;
@@ -47,9 +48,9 @@ class Patrols{
             try{
                 if(this.patrolRoute[this.sceneId] == null){
                     this._generateScene();
-                    resolve(true);
+                    resolve(false);
                 }
-                resolve(false);
+                resolve(true);
             } 
             catch(error){
                 reject(error);
@@ -67,8 +68,6 @@ class Patrols{
         }
         return true;
     }
-
-
 
     _addTokenPatrol(plots){ 
         return new Promise((resolve, reject) => {
@@ -155,10 +154,38 @@ class Patrols{
             this.lastRecordedLocation.y = futurePlot.y;
         }
         else{
-            let currentPosition = this.token.position;
-            this.lastRecordedLocation.x = currentPosition._x;
-            this.lastRecordedLocation.y = currentPosition._y;
+            this.lastRecordedLocation.x = getProperty(this.token.data, "x");
+            this.lastRecordedLocation.y = getProperty(this.token.data, "y");
         }
+    }
+
+
+    deleteProcess(){
+        let deletePrompt = new Dialog({
+            title: "Patrol Start",
+            content: "<p></p>",
+            buttons: {
+             one: {
+              icon: '<i class="fas fa-check"></i>',
+              label: "Confirm: Delete this token's stored routes",
+              callback: () => this._deleteRoutes()
+             }, 
+             two: {
+                icon: '<i class="fas fa-check"></i>',
+                label: "Reject: I do not want to delete",
+                callback: () => console.log("Foundry-Patrol: Mind changed, nothing deleted")
+             }
+            },
+            default: "Ack",
+            close: () => console.log("Foundry-Patrol: Prompt Closed")
+        });
+        deletePrompt.render(true);
+    }
+
+    _deleteRoutes(){
+        this.isWalking == false;
+        this.patrolRoute[this.sceneId] = {};
+        this._updateToken();
     }
 
     get getPlotsFromId(){
@@ -184,6 +211,7 @@ class Patrols{
         return this.patrolRoute;
     }
 
+    
 }
 
 function tokenHUDPatrol(app, html, data){
@@ -191,45 +219,58 @@ function tokenHUDPatrol(app, html, data){
     let isPatrolling = token.routes.isPatrolling;
 
     const plotDiv = $(`
-        <div class="plotDiv" style="display: flex; flex-direction: row; justify-content: center; align-items:center;">\
+        <div class="plotDiv" style="display: flex; flex-direction: row; justify-content: center; align-items:center; margin-right: 48px;">\
         </div>
     `);
 
     const addPlotPoint = $(`
-        <div class="control-icon"> \ 
+        <div class="control-icon" style="margin-left: 4px;"> \ 
             <img src="icons/svg/clockwork.svg" width="36" height="36" title="mark-point"> \
         </div>
     `);
 
-    const undoPlotPoint = $(`
-        <div class="control-icon"> \ 
-            <i class="fa fa-undo"></i> \
+    const deletePlotPoint = $(`
+        <div class="control-icon" style="margin-left: 4px;"> \ 
+            <i class="fas fa-trash-alt"></i> \
+        </div>
+    `);
+
+    const inversePlotDirection = $(`
+        <div class="control-icon" style="margin-left: 4px;"> \ 
+            <i class="fas fa-recycle"></i> \
         </div>
     `);
 
     const patrolDiv = $(`
-        <div class="patrolDiv" style="display: flex; flex-direction: row; justify-content: center; align-items:center;">\
+        <div class="patrolDiv" style="display: flex; flex-direction: row; justify-content: center; align-items:center; margin-right: 7px;">\
         </div>
     `);
     
-    var patrolWalkHUD = $(`<i class="fas fa-walking title control-icon"></i>`)
+    var patrolWalkHUD = $(`<i class="fas fa-walking title control-icon" style="margin-left: 4px;"></i>`)
     
     if(isPatrolling == true){
-        patrolWalkHUD = $(`<i class="fas fa-times title control-icon"></i>`)
+        patrolWalkHUD = $(`<i class="fas fa-times title control-icon" style="margin-left: 4px;"></i>`)
     }
     
-    const patrolDelayHUD = $(`<input class="control-icon" type="text" id="patrolWait" value=${token.routes.getDelayPeriod} name="patrolWait">`)
+    const patrolDelayHUD = $(`<input class="control-icon"  style="margin-left: 4px;" type="text" id="patrolWait" value=${token.routes.getDelayPeriod} name="patrolWait">`)
 
     if(game.user.isGM || game.settings.get("foundry-patrol", "enablePlayerPatrol"))
     {
         html.find('.left').append(plotDiv);
         html.find('.plotDiv').append(addPlotPoint);
+        html.find('.plotDiv').append(deletePlotPoint);
+        html.find('.plotDiv').append(inversePlotDirection);
         html.find('.left').append(patrolDiv);
         html.find('.patrolDiv').append(patrolWalkHUD);
         html.find('.patrolDiv').append(patrolDelayHUD);
+
         addPlotPoint.click(ev => {
             token.routes.addPlotPoint(app);
             pointAdded.render(true);
+        });
+
+        deletePlotPoint.click(ev => {
+            token.routes.deleteProcess();
         });
 
         patrolWalkHUD.click(ev => {
@@ -242,6 +283,9 @@ function tokenHUDPatrol(app, html, data){
             let delayPeriod = document.getElementById("patrolWait").value;
             token.routes.startPatrol(delayPeriod);
         });
+
+
+
 
     }
 }
