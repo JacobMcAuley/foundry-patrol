@@ -1,23 +1,9 @@
-let pointAdded = new Dialog({
-    title: "Point Added",
-    content: "<p>A point has been added to the route</p>",
-    buttons: {
-     one: {
-      icon: '<i class="fas fa-check"></i>',
-      label: "Close",
-      callback: () => console.log("Foundry-Patrol: Prompt Closed")
-     }
-    },
-    default: "Ack",
-    close: () => console.log("Foundry-Patrol: Prompt Closed")
-});
-
-
 class Patrols{
     constructor(token, debug = true){
         this.debug = debug;
         this.isWalking = false;
         this.sceneId = canvas.id;
+        this.inverted = false;
         this.token = token;
         this.patrolRoute = this.token.data.flags['foundry-patrol'].routes;
         this.lastRecordedLocation = {
@@ -26,10 +12,29 @@ class Patrols{
         }
         this.delayPeriod = 2000;
         if(this.debug) console.log("Foundry-Patrol: Creating");
+        this.isDeleted = false;
     }
 
     addPlotPoint(data){
         this.generateRoute({x: getProperty(this.token.data, "x"), y: getProperty(this.token.data, "y")});
+        this._addPlotDisplay();
+    }
+
+    _addPlotDisplay(){
+        let pointAdded = new Dialog({
+            title: "Point Added",
+            content: "<p>A point has been added to the route</p>",
+            buttons: {
+             one: {
+              icon: '<i class="fas fa-check"></i>',
+              label: "Close",
+              callback: () => console.log("Foundry-Patrol: Prompt Closed")
+             }
+            },
+            default: "Ack",
+            close: () => console.log("Foundry-Patrol: Prompt Closed")
+        });        
+        pointAdded.render(true);
     }
 
     async generateRoute(plots){
@@ -62,9 +67,9 @@ class Patrols{
     _generateScene(){
         this.patrolRoute[this.sceneId] = {
             plots: [],
-            inverse: true,
             enabled: false,
-            lastPos: 0
+            lastPos: 0,
+            onInverseReturn: false
         }
         return true;
     }
@@ -104,22 +109,50 @@ class Patrols{
     {
         const sleep = m => new Promise(r => setTimeout(r, m));
         let patrolPoints = this.getPlotsFromId;
+        let lastPos = this._determineLastPosition();
 
-        for(let i = 0; i < patrolPoints.length; i++){
-            console.log("Quick")
-            await sleep(this.delayPeriod);
-            if(this.isWalking && !game.paused && !this._wasTokenMoved() && this._validatePatrol()){
-                await this._navigateToNextPoint(patrolPoints[i]);
-            }
-            else{
-                if(game.paused == true){
-                    i = --i;
-                }else{
-                    this.isWalking = false;
-                    break;
+        if(!this.onInverseReturn){
+            for(let i = lastPos; i < patrolPoints.length; i++){
+                await sleep(this.delayPeriod);
+                if(this.isWalking && !game.paused && !this._wasTokenMoved() && this._validatePatrol() && !this.isDeleted){
+                    console.log(`In: ${i}`);
+                    await this._navigateToNextPoint(patrolPoints[i]);
                 }
-            }
+                else{
+                    if(game.paused == true){
+                        i = --i;
+                    }else{
+                        this.isWalking = false;
+                        break;
+                    }
+                }
+                this._storeLastPlotTaken(i);
+            }    
         }
+
+        if(this.isInverted)
+        {
+            this._setInverseReturn();
+            lastPos = this._determineLastPosition();
+            for(let i = lastPos; i >= 0; i--){
+                await sleep(this.delayPeriod);
+                if(this.isWalking && !game.paused && !this._wasTokenMoved() && this._validatePatrol() && !this.isDeleted){
+                    console.log(`Inv: ${i}`);
+                    await this._navigateToNextPoint(patrolPoints[i]);
+                }
+                else{
+                    if(game.paused == true){
+                        i = --i;
+                    }else{
+                        this.isWalking = false;
+                        break;
+                    }
+                }
+                this._storeLastPlotTaken(i);
+            }
+            this._setInverseReturn();    
+        }
+
     }
 
     async _navigateToNextPoint(plot){
@@ -130,6 +163,23 @@ class Patrols{
         catch(error){
             if(this.debug) console.log(`Foundry-Patrol: Error in token navigation\n${error}`);
         }
+    }
+
+    _determineLastPosition(){
+        let patrolPoints = this.getPlotsFromId;
+        let lastPos = this.lastPos + 1;
+        if(!this.onInverseReturn){
+            if(lastPos >= patrolPoints.length){
+                lastPos = 0;
+                return lastPos;
+            }
+            return lastPos;
+        }
+        if(this.lastPos == 0){
+            this._setInverse();
+            return this.lastPos;
+        }
+        return this.lastPos - 1;
     }
 
     _wasTokenMoved(){
@@ -155,6 +205,10 @@ class Patrols{
         return true;
     }
 
+    _storeLastPlotTaken(plotNumber){
+        this.patrolRoute[this.sceneId].lastPos = plotNumber;
+        this._updateToken();
+    }
 
     _updatelastRecordedLocation(futurePlot){
         if(futurePlot != undefined){
@@ -195,15 +249,28 @@ class Patrols{
     }
 
     _deleteRoutes(){
-        this.isWalking == false;
-        this.patrolRoute[this.sceneId].plots.length = 0;
-        console.log(this.patrolRoute);
-        this._updateToken();
+        if(this.getPlotsFromId != false){
+            this.isWalking == false;
+            this.patrolRoute[this.sceneId].plots.length = 0;
+            console.log(this.patrolRoute);
+            this._updateToken();
+        }
     }
 
     _undoLast(){
-        this.patrolRoute[this.sceneId].plots.pop();
-        console.log(this.patrolRoute);
+        if(this.getPlotsFromId != false){
+            this.patrolRoute[this.sceneId].plots.pop();
+            console.log(this.patrolRoute);
+            this._updateToken();
+        }
+    }
+
+    _setInverse(){
+        this.inverted = !this.inverted;
+    }
+
+    _setInverseReturn(){
+        this.patrolRoute[this.sceneId].onInverseReturn = !this.patrolRoute[this.sceneId].onInverseReturn;
         this._updateToken();
     }
 
@@ -217,6 +284,14 @@ class Patrols{
         }
     }
 
+    get isInverted(){
+        return this.inverted;
+    }
+
+    get onInverseReturn(){
+        return this.patrolRoute[this.sceneId].onInverseReturn;
+    }
+
     get isPatrolling(){
         return this.isWalking;
     }
@@ -225,17 +300,19 @@ class Patrols{
         return this.delayPeriod/1000;
     }
    
+    get lastPos(){
+        return this.patrolRoute[this.sceneId].lastPos
+    }
 
     get getAllRoutes(){
         return this.patrolRoute;
     }
-
-    
 }
 
 function tokenHUDPatrol(app, html, data){
     let token = app.object;
     let isPatrolling = token.routes.isPatrolling;
+    let isInverted = token.routes.isInverted;
 
     const plotDiv = $(`
         <div class="plotDiv" style="display: flex; flex-direction: row; justify-content: center; align-items:center; margin-right: 48px;">\
@@ -248,17 +325,13 @@ function tokenHUDPatrol(app, html, data){
         </div>
     `);
 
-    const deletePlotPoint = $(`
-        <div class="control-icon" style="margin-left: 4px;"> \ 
-            <i class="fas fa-trash-alt"></i> \
-        </div>
-    `);
+    const deletePlotPoint = $(`<i class="control-icon fas fa-trash-alt" style="margin-left: 4px;"></i>`);
 
-    const inversePlotDirection = $(`
-        <div class="control-icon" style="margin-left: 4px;"> \ 
-            <i class="fas fa-recycle"></i> \
-        </div>
-    `);
+    var plotDirection = $(`<i class="control-icon fas fa-recycle" style="margin-left: 4px;"></i>`);
+
+    if(isInverted){
+        plotDirection = $(`<i class="control-icon fas fa-arrows-alt-h" style="margin-left: 4px;"></i>`);
+    }
 
     const patrolDiv = $(`
         <div class="patrolDiv" style="display: flex; flex-direction: row; justify-content: center; align-items:center; margin-right: 7px;">\
@@ -267,7 +340,7 @@ function tokenHUDPatrol(app, html, data){
     
     var patrolWalkHUD = $(`<i class="fas fa-walking title control-icon" style="margin-left: 4px;"></i>`)
     
-    if(isPatrolling == true){
+    if(isPatrolling){
         patrolWalkHUD = $(`<i class="fas fa-times title control-icon" style="margin-left: 4px;"></i>`)
     }
     
@@ -278,22 +351,32 @@ function tokenHUDPatrol(app, html, data){
         html.find('.left').append(plotDiv);
         html.find('.plotDiv').append(addPlotPoint);
         html.find('.plotDiv').append(deletePlotPoint);
-        html.find('.plotDiv').append(inversePlotDirection);
+        html.find('.plotDiv').append(plotDirection);
         html.find('.left').append(patrolDiv);
         html.find('.patrolDiv').append(patrolWalkHUD);
         html.find('.patrolDiv').append(patrolDelayHUD);
 
         addPlotPoint.click(ev => {
-            token.routes.addPlotPoint(app);
-            pointAdded.render(true);
+            token.routes.addPlotPoint();
         });
 
         deletePlotPoint.click(ev => {
             token.routes.deleteProcess();
         });
 
+        plotDirection.click(ev => {
+            let className = ev.target.getAttribute("class");
+            if(className == "control-icon fas fa-arrows-alt-h"){
+                ev.target.className = "control-icon fas fa-recycle"
+
+            }else{
+                ev.target.className = "control-icon fas fa-arrows-alt-h"
+            } 
+            token.routes._setInverse();
+        })
+
         patrolWalkHUD.click(ev => {
-            var className = ev.target.getAttribute("class");
+            let className = ev.target.getAttribute("class");
             if(className == "fas fa-walking title control-icon"){
                 ev.target.className = "fas fa-times title control-icon"
             }else{
@@ -302,9 +385,5 @@ function tokenHUDPatrol(app, html, data){
             let delayPeriod = document.getElementById("patrolWait").value;
             token.routes.startPatrol(delayPeriod);
         });
-
-
-
-
     }
 }
