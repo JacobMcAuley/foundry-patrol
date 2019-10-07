@@ -1,8 +1,28 @@
-Hooks.on('init', () => game.settings.register(PATROLCONFIG.module, PATROLCONFIG.key, PATROLCONFIG.settings));
+var GLOBAL_ROUTES_INDEX = null;
+
+
+Hooks.on('init', () => {
+    game.settings.register(PATROLCONFIG.module, PATROLCONFIG.key, PATROLCONFIG.settings)
+});
+
+Hooks.on('ready', () => {
+    console.log(`Foundry-Patrol: Adding route -> ${canvas.stage.addChild(new RoutesLayer)}`);
+    GLOBAL_ROUTES_INDEX = canvas.layers.findIndex(function(element){
+        return element.constructor.name == "RoutesLayer"
+    });
+});
 
 Hooks.on('renderTokenHUD', (app, html, data) => tokenHUDPatrol(app,html,data));
 
 Hooks.on('canvasInit', () => {
+    let flags = canvas.scene.data.flags;
+    if(flags.routes == null){
+        flags.routes = [];
+        canvas.scene.update({flags: flags});
+    }
+
+    
+    // Token routes generation if DNE.
     Token.prototype.routes = null;
     let tokens = canvas.tokens.ownedTokens;
     for(let i = 0; i < tokens.length; i++){ 
@@ -28,3 +48,17 @@ Hooks.on("preCreateToken", (actorId, createData, options) => {
 Hooks.on("deleteToken",(token, sceneId, options) =>{
     token.routes.isDeleted = true;
 })
+
+Hooks.on("controlToken", (object, controlled) => {
+    if(controlled){
+        console.log("Controlled");
+        object.routes.displayPlot();
+        canvas.layers[GLOBAL_ROUTES_INDEX].draw();
+    }
+    else{
+        object.routes.removePlot();
+        canvas.layers[GLOBAL_ROUTES_INDEX].deactivate();
+        canvas.layers[GLOBAL_ROUTES_INDEX].draw();
+    }
+})
+
