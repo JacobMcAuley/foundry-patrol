@@ -13,11 +13,13 @@ class Patrols{
         this.delayPeriod = 2000;
         if(this.debug) console.log("Foundry-Patrol: Creating");
         this.isDeleted = false;
+        this.drawnPlot = null;
     }
 
     addPlotPoint(data){
         this.generateRoute({x: getProperty(this.token.data, "x"), y: getProperty(this.token.data, "y")});
         this._addPlotDisplay();
+        this.livePlotUpdate();
     }
 
     _addPlotDisplay(){
@@ -186,7 +188,7 @@ class Patrols{
         try{
             if(this.lastRecordedLocation.x != getProperty(this.token.data, "x") || this.lastRecordedLocation.y != getProperty(this.token.data, "y")){
                 return true;
-            }
+            }canvas
             return false;
         }
         catch(error){
@@ -272,6 +274,41 @@ class Patrols{
     _setInverseReturn(){
         this.patrolRoute[this.sceneId].onInverseReturn = !this.patrolRoute[this.sceneId].onInverseReturn;
         this._updateToken();
+    }
+
+    displayPlot(){
+        let flags = canvas.scene.data.flags;
+        if(this.getPlotsFromId.length > 0){
+            this.drawnPlot = new drawRoute({
+                points: this.getPlotsFromId, 
+                dash: 25,
+                gap: 25,
+                offset: 750
+            });
+            console.log(this.drawnPlot);
+            flags.routes.push(this.drawnPlot);
+            canvas.scene.update({flags: flags});
+        }
+    }
+
+    removePlot(){
+        let flags = canvas.scene.data.flags;
+        let tempPlot = this.drawnPlot
+        let plotIndex = flags.routes.findIndex(function(element){
+            return element == tempPlot;
+        })
+        console.log(plotIndex);
+        if(plotIndex != -1){
+            flags.routes.splice(plotIndex, 1);
+            canvas.scene.update({flags: flags});
+        }
+    }
+
+    livePlotUpdate(){
+        this.removePlot();
+        this.displayPlot();
+        //canvas.layers[GLOBAL_ROUTES_INDEX].deactivate();
+        canvas.layers[GLOBAL_ROUTES_INDEX].draw();
     }
 
     get getPlotsFromId(){
