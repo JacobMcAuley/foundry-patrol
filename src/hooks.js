@@ -62,4 +62,3 @@ Hooks.on("controlToken", (object, controlled) => {
         object.routes.isSelected();
     }
 })
-
