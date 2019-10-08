@@ -1,6 +1,8 @@
 class Patrols{
     constructor(token, debug = true){
         this.debug = debug;
+        if(this.debug) console.log("Foundry-Patrol: Creating");
+
         this.isWalking = false;
         this.sceneId = canvas.id;
         this.inverted = false;
@@ -11,14 +13,25 @@ class Patrols{
             y : getProperty(this.token.data, "y")
         }
         this.delayPeriod = 2000;
-        if(this.debug) console.log("Foundry-Patrol: Creating");
         this.isDeleted = false;
+
         this.drawnPlot = null;
+        this.color = this._generateColor();
+        this.selected = false;
     }
 
-    async addPlotPoint(data){
+    _generateColor(){
+        let options = "0123456789ABCDEF"
+        let color = "0x";
+        for(let i = 0; i < 6; ++i){
+            color += options[Math.floor(Math.random()* 16)]
+        }
+        return color;
+    } 
+
+    async addPlotPoint(displayInfo = false){
         await this.generateRoute({x: getProperty(this.token.data, "x"), y: getProperty(this.token.data, "y")});
-        this._addPlotDisplay();
+        if(displayInfo) this._addPlotDisplay();
         await this.livePlotUpdate();
     }
 
@@ -117,7 +130,6 @@ class Patrols{
             for(let i = lastPos; i < patrolPoints.length; i++){
                 await sleep(this.delayPeriod);
                 if(this.isWalking && !game.paused && !this._wasTokenMoved() && this._validatePatrol() && !this.isDeleted){
-                    console.log(`In: ${i}`);
                     await this._navigateToNextPoint(patrolPoints[i]);
                 }
                 else{
@@ -285,7 +297,8 @@ class Patrols{
                 points: this.getPlotsFromId, 
                 dash: 25,
                 gap: 25,
-                offset: 750
+                offset: 750,
+                color : this.color
             });
             flags.routes.push(this.drawnPlot);
             canvas.scene.update({flags: flags});
@@ -309,6 +322,19 @@ class Patrols{
         canvas.layers[GLOBAL_ROUTES_INDEX].deactivate();
         this.displayPlot();
         canvas.layers[GLOBAL_ROUTES_INDEX].draw();
+    }
+
+    isSelected(){
+        let flags = canvas.scene.data.flags;
+        this.selected = !this.selected;
+        if(this.selected){
+            flags["selected"].push(this);
+            canvas.scene.update({flags: flags});
+        }
+        else{
+            flags["selected"].pop(); // Adjust in the future to handle multiple
+            canvas.scene.update({flags: flags});
+        }
     }
 
     get getPlotsFromId(){
