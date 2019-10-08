@@ -17,11 +17,8 @@ class RoutesLayer extends CanvasLayer
     async draw()
     {
         await super.draw();
-        // Create objects container
         this.objects = this.addChild(new PIXI.Container());
     
-    
-        // Create and draw placeable objects
         let objectData = canvas.scene.data.flags.routes;
         for ( let data of objectData ) {
           let obj = await this.drawObject(data);
@@ -41,7 +38,6 @@ class RoutesLayer extends CanvasLayer
         let obj = new drawRoute(data);
         return obj.showRoute();
     }
-
 }
 
 class drawRoute extends PlaceableObject{
@@ -104,38 +100,24 @@ class drawRoute extends PlaceableObject{
                     gapLength = 0;
                     this.drawing.moveTo(pointOne.x + 50 + lineStart*seperatePoints.x, pointOne.y + 50 +lineStart*seperatePoints.y)
                 }
-            }
-            
+            }     
         }
     }
-
 
     showRoute(){
         if(!this.drawID){
-            console.log("RUNNING THE DRAWING");
-            this.drawing.clear();
-            this.drawing.lineStyle(5, 0x00FF00, 0.7);
-            var offsetInterval = this.offset;
-            this._drawDashedLine((Date.now()%offsetInterval+1)/offsetInterval);
-            requestAnimationFrame(this.showRoute.bind(this));
-            return this;
+            console.log("Foundry-Patrol: Route being plotted");
+            try{ // Error message will get thrown when drawing is removed, as the animation can no longer clear.
+                this.drawing.clear();
+                this.drawing.lineStyle(5, 0x00FF00, 0.7);
+                var offsetInterval = this.offset;
+                this._drawDashedLine((Date.now()%offsetInterval+1)/offsetInterval);
+                requestAnimationFrame(this.showRoute.bind(this));
+                return this;
+            }
+            catch(err){
+                console.log("Foundry-Patrol: Route cleared");
+            }
         }
     }
-
-    deactivate(){
-        this.drawing.clear();
-        if(this.drawID){
-            cancelAnimationFrame(this.drawID);
-            this.drawID = undefined;
-        }
-    }
-
 }
-
-/*
-let x = canvas.tokens.ownedTokens[0]
-x.routes.displayPlot()
-x.routes.drawnPlot.showRoute();
-
-x.routes.drawnPlot.deactivate();
-*/
