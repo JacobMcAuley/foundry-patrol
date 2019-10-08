@@ -16,10 +16,10 @@ class Patrols{
         this.drawnPlot = null;
     }
 
-    addPlotPoint(data){
-        this.generateRoute({x: getProperty(this.token.data, "x"), y: getProperty(this.token.data, "y")});
+    async addPlotPoint(data){
+        await this.generateRoute({x: getProperty(this.token.data, "x"), y: getProperty(this.token.data, "y")});
         this._addPlotDisplay();
-        this.livePlotUpdate();
+        await this.livePlotUpdate();
     }
 
     _addPlotDisplay(){
@@ -256,6 +256,7 @@ class Patrols{
             this.patrolRoute[this.sceneId].plots.length = 0;
             console.log(this.patrolRoute);
             this._updateToken();
+            this.livePlotUpdate();
         }
     }
 
@@ -264,6 +265,7 @@ class Patrols{
             this.patrolRoute[this.sceneId].plots.pop();
             console.log(this.patrolRoute);
             this._updateToken();
+            this.livePlotUpdate();
         }
     }
 
@@ -285,7 +287,6 @@ class Patrols{
                 gap: 25,
                 offset: 750
             });
-            console.log(this.drawnPlot);
             flags.routes.push(this.drawnPlot);
             canvas.scene.update({flags: flags});
         }
@@ -297,7 +298,6 @@ class Patrols{
         let plotIndex = flags.routes.findIndex(function(element){
             return element == tempPlot;
         })
-        console.log(plotIndex);
         if(plotIndex != -1){
             flags.routes.splice(plotIndex, 1);
             canvas.scene.update({flags: flags});
@@ -306,8 +306,8 @@ class Patrols{
 
     livePlotUpdate(){
         this.removePlot();
+        canvas.layers[GLOBAL_ROUTES_INDEX].deactivate();
         this.displayPlot();
-        //canvas.layers[GLOBAL_ROUTES_INDEX].deactivate();
         canvas.layers[GLOBAL_ROUTES_INDEX].draw();
     }
 
