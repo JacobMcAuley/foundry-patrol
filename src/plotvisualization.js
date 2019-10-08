@@ -16,13 +16,18 @@ class RoutesLayer extends CanvasLayer
 
     async draw()
     {
-        await super.draw();
-        this.objects = this.addChild(new PIXI.Container());
-    
-        let objectData = canvas.scene.data.flags.routes;
-        for ( let data of objectData ) {
-          let obj = await this.drawObject(data);
-          this.objects.addChild(obj.drawing);
+        try{
+            await super.draw();
+            this.objects = this.addChild(new PIXI.Container());
+        
+            let objectData = canvas.scene.data.flags.routes;
+            for ( let data of objectData ) {
+              let obj = await this.drawObject(data);
+              this.objects.addChild(obj.drawing);
+            }
+        }
+        catch(error){
+            console.log("Foundry-Patrol: Routes layer draw has thrown an error. Likely the scene was swapped. This can be disregarded");
         }
     }
 
@@ -48,14 +53,14 @@ class drawRoute extends PlaceableObject{
         this.dash = data.dash;
         this.gap = data.gap;
         this.offset = data.offset;
+        this.color = data.color;
         this.drawing = new PIXI.Graphics();
-        this.drawID = null;
     }
 
     _drawDashedLine(offset){ //Method inspired by user: ErikSom located here https://github.com/pixijs/pixi.js/issues/1333
         var dashSize = 0;
         var gapLength = 0;
-        var GRIDSIZE = null // CHANGE ALL 50s to GRIDSIZE;
+        const GRID_SIZE = (canvas.grid.size == null)? 50 : canvas.grid.size/2; // CHANGE ALL 50s to GRIDSIZE;
         var pointOne, pointTwo;
         if(offset > 0){
             let progressiveOffset = (this.dash+this.gap)*offset
@@ -71,12 +76,12 @@ class drawRoute extends PlaceableObject{
                 pointTwo = this.points[this.points.length - 1]; // Forwards - backwards
             else
                 pointTwo = this.points[i-1];
-            let dX = (pointTwo.x + 50) - (pointOne.x + 50); 
-            let dY = (pointTwo.y + 50) - (pointOne.y + 50);
+            let dX = (pointTwo.x + GRID_SIZE) - (pointOne.x + GRID_SIZE); 
+            let dY = (pointTwo.y + GRID_SIZE) - (pointOne.y + GRID_SIZE);
             let pointLen = Math.sqrt(Math.pow(dX, 2) + Math.pow(dY, 2))
             let seperatePoints = {x : dX/pointLen, y : dY/pointLen}
             let lineStart = 0;
-            this.drawing.moveTo(pointOne.x + 50 +gapLength*seperatePoints.x, pointOne.y + 50 +gapLength*seperatePoints.y)
+            this.drawing.moveTo(pointOne.x + GRID_SIZE +gapLength*seperatePoints.x, pointOne.y + GRID_SIZE +gapLength*seperatePoints.y)
             while(lineStart <= pointLen){
                 lineStart += gapLength;
                 if(dashSize > 0)
@@ -91,33 +96,31 @@ class drawRoute extends PlaceableObject{
                 else{
                     dashSize = 0;
                 }
-                this.drawing.lineTo(pointOne.x + 50 + lineStart*seperatePoints.x, pointOne.y + 50 +lineStart*seperatePoints.y)
+                this.drawing.lineTo(pointOne.x + GRID_SIZE + lineStart*seperatePoints.x, pointOne.y + GRID_SIZE +lineStart*seperatePoints.y)
                 lineStart += this.gap;
                 if(lineStart > pointLen && dashSize == 0){
                     gapLength = lineStart-pointLen;
                 }
                 else{
                     gapLength = 0;
-                    this.drawing.moveTo(pointOne.x + 50 + lineStart*seperatePoints.x, pointOne.y + 50 +lineStart*seperatePoints.y)
+                    this.drawing.moveTo(pointOne.x + GRID_SIZE + lineStart*seperatePoints.x, pointOne.y + GRID_SIZE +lineStart*seperatePoints.y)
                 }
             }     
         }
     }
 
     showRoute(){
-        if(!this.drawID){
-            console.log("Foundry-Patrol: Route being plotted");
-            try{ // Error message will get thrown when drawing is removed, as the animation can no longer clear.
-                this.drawing.clear();
-                this.drawing.lineStyle(5, 0x00FF00, 0.7);
-                var offsetInterval = this.offset;
-                this._drawDashedLine((Date.now()%offsetInterval+1)/offsetInterval);
-                requestAnimationFrame(this.showRoute.bind(this));
-                return this;
-            }
-            catch(err){
-                console.log("Foundry-Patrol: Route cleared");
-            }
+        console.log("Foundry-Patrol: Route being plotted");
+        try{ // Error message will get thrown when drawing is removed, as the animation can no longer clear.
+            this.drawing.clear();
+            this.drawing.lineStyle(5, this.color, 0.7);
+            var offsetInterval = this.offset;
+            this._drawDashedLine((Date.now()%offsetInterval+1)/offsetInterval);
+            requestAnimationFrame(this.showRoute.bind(this));
+            return this;
+        }
+        catch(err){
+            console.log("Foundry-Patrol: Route cleared");
         }
     }
 }
