@@ -52,8 +52,7 @@ Hooks.on("deleteToken",(token, sceneId, options) =>{
 Hooks.on("controlToken", (object, controlled) => {
     if(controlled){
         console.log("Controlled");
-        object.routes.displayPlot();
-        canvas.layers[GLOBAL_ROUTES_INDEX].draw();
+        object.routes.livePlotUpdate();
     }
     else{
         object.routes.removePlot();
