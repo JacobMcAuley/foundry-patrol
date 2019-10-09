@@ -18,6 +18,8 @@ class Patrols{
         this.drawnPlot = null;
         this.color = this._generateColor();
         this.selected = false;
+
+        this.countinousRoutes = [];
     }
 
     _generateColor(){
@@ -33,6 +35,7 @@ class Patrols{
         await this.generateRoute({x: getProperty(this.token.data, "x"), y: getProperty(this.token.data, "y")});
         if(displayInfo) this._addPlotDisplay();
         await this.livePlotUpdate();
+        await this.linearWalk();
     }
 
     _addPlotDisplay(){
@@ -111,7 +114,7 @@ class Patrols{
 
     async startPatrol(userDelayPeriod){
         this._updatelastRecordedLocation();
-        (userDelayPeriod == 0) ? this.delayPeriod: this.delayPeriod = userDelayPeriod * 1000; //Defaults to previous.
+        (userDelayPeriod <= 0 || userDelayPeriod == null) ? this.delayPeriod: this.delayPeriod = userDelayPeriod * 1000; //Defaults to previous.
         this.isWalking = !this.isWalking;
         while(this.isWalking && this._validatePatrol())
         {
@@ -123,7 +126,7 @@ class Patrols{
     async _navigationLoop()
     {
         const sleep = m => new Promise(r => setTimeout(r, m));
-        let patrolPoints = this.getPlotsFromId;
+        let patrolPoints = this.getPlotsFromId; //this.countinousRoutes; [Fix plot.length -1] ---> [0]
         let lastPos = this._determineLastPosition();
 
         if(!this.onInverseReturn){
@@ -177,9 +180,52 @@ class Patrols{
         catch(error){
             if(this.debug) console.log(`Foundry-Patrol: Error in token navigation\n${error}`);
         }
+    } 
+
+    async linearWalk(){
+        let plot = await JSON.parse(JSON.stringify(this.getPlotsFromId));
+        let len = plot.length - 1;
+        if(len <= 0){
+            this.countinousRoutes.push(plot[0]);
+        }
+        else{
+            let xMod = (plot[len].x >= plot[len-1].x) ? 1 : -1;
+            let yMod = (plot[len].y >= plot[len-1].y) ? 1 : -1; 
+            await this._generateLinearRoute(plot[len-1], plot[len], xMod, yMod);
+        }
     }
 
-    _determineLastPosition(){
+    async _generateLinearRoute(src, dest, xMod, yMod){
+        const GRID_SIZE = canvas.grid.size;
+        if(src.x == dest.x && src.y == dest.y)
+        {
+            return true;
+        }
+        else if(src.x != dest.x && src.y != dest.y)
+        {
+            src.x += GRID_SIZE * xMod;
+            src.y += GRID_SIZE * yMod;
+            this.countinousRoutes.push({x: src.x, y: src.y});
+            return this._generateLinearRoute(src, dest, xMod, yMod);
+        }
+        else if(src.x == dest.x && src.y != dest.y)
+        {
+            src.y += GRID_SIZE * yMod;
+            this.countinousRoutes.push({x: src.x, y: src.y});
+            return this._generateLinearRoute(src, dest, xMod, yMod);
+        }
+        else if(src.x != dest.x && src.y == dest.y){
+            src.x += GRID_SIZE * xMod;
+            this.countinousRoutes.push({x: src.x, y: src.y});
+            return this._generateLinearRoute(src, dest, xMod, yMod);
+        }
+        else{
+            console.log("Foundry-Patrol: Error in generating Continuous route.");
+        }
+    }
+
+
+    _determineLastPosition(){ // Rework this.
         let patrolPoints = this.getPlotsFromId;
         let lastPos = this.lastPos + 1;
         if(!this.onInverseReturn){
@@ -193,7 +239,7 @@ class Patrols{
             this._setInverse();
             return this.lastPos;
         }
-        return this.lastPos - 1;
+        return this.lastPos - 2;
     }
 
     _wasTokenMoved(){
@@ -266,7 +312,6 @@ class Patrols{
         if(this.getPlotsFromId != false){
             this.isWalking == false;
             this.patrolRoute[this.sceneId].plots.length = 0;
-            console.log(this.patrolRoute);
             this._updateToken();
             this.livePlotUpdate();
         }
@@ -275,7 +320,6 @@ class Patrols{
     _undoLast(){
         if(this.getPlotsFromId != false){
             this.patrolRoute[this.sceneId].plots.pop();
-            console.log(this.patrolRoute);
             this._updateToken();
             this.livePlotUpdate();
         }
@@ -288,6 +332,10 @@ class Patrols{
     _setInverseReturn(){
         this.patrolRoute[this.sceneId].onInverseReturn = !this.patrolRoute[this.sceneId].onInverseReturn;
         this._updateToken();
+    }
+
+    _disableWalking(){
+        this.isWalking = false;
     }
 
     displayPlot(){
