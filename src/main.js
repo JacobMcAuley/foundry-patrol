@@ -112,15 +112,34 @@ class Patrols{
         return true;    
     }
 
-    async startPatrol(userDelayPeriod){
+    async startPatrol(delay){
+        _handleDelayPeriod(delay);
         this._updatelastRecordedLocation();
-        (userDelayPeriod <= 0 || userDelayPeriod == null) ? this.delayPeriod: this.delayPeriod = userDelayPeriod * 1000; //Defaults to previous.
         this.isWalking = !this.isWalking;
         while(this.isWalking && this._validatePatrol())
         {
             await this._navigationLoop();
         }
-        this.isWalking = false;
+        this._disableWalking();
+    }
+
+    _handleDelayPeriod(delay){
+        const MILLISECONDS = 1000;
+        if(delay == null || delay <= 0)
+            return;
+        try{
+            delay = delay.replace(/ /g,"");
+            delay = delay.split(',');
+            for(let i = 0; i < delay.length; ++i)
+            {
+                delay[i] * MILLISECONDS;
+            }
+            console.log(delay);
+            this.delayPeriod = delay;
+        }
+        catch(error) { // Occurs in the event the user fails to properly pass values. In this case, revert to previously accepted value.
+            return;
+        }
     }
 
     async _navigationLoop()
@@ -139,7 +158,7 @@ class Patrols{
                     if(game.paused == true){
                         i = --i;
                     }else{
-                        this.isWalking = false;
+                        this._disableWalking();
                         break;
                     }
                 }
@@ -161,7 +180,7 @@ class Patrols{
                     if(game.paused == true){
                         i = --i;
                     }else{
-                        this.isWalking = false;
+                        this._disableWalking();
                         break;
                     }
                 }
