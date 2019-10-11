@@ -8,7 +8,8 @@
         "./src/main.js",
         "./src/hooks.js",
         "./src/plotvisualization.js",
-        "./config/config.js"
+        "./config/config.js",
+        "./src/keylogger.js"
     ],
     "url": "https://github.com/JacobMcAuley/foundry-patrol",
     "manifest": "https://github.com/JacobMcAuley/foundry-patrol/raw/master/module.json",

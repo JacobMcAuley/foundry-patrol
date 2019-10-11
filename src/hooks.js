@@ -1,5 +1,5 @@
 var GLOBAL_ROUTES_INDEX = null;
-
+var ROUTE_LOGGER = null
 
 Hooks.on('init', () => {
     game.settings.register(PATROLCONFIG.module, PATROLCONFIG.key, PATROLCONFIG.settings)
@@ -10,6 +10,7 @@ Hooks.on('ready', () => {
     GLOBAL_ROUTES_INDEX = canvas.layers.findIndex(function(element){
         return element.constructor.name == "RoutesLayer"
     });
+    ROUTE_LOGGER = new RoutesKeyLogger();
 });
 
 Hooks.on('renderTokenHUD', (app, html, data) => tokenHUDPatrol(app,html,data));
@@ -18,10 +19,10 @@ Hooks.on('canvasInit', () => {
     let flags = canvas.scene.data.flags;
     if(flags.routes == null){
         flags.routes = [];
+        flags.selected = [];
         canvas.scene.update({flags: flags});
     }
 
-    
     // Token routes generation if DNE.
     Token.prototype.routes = null;
     let tokens = canvas.tokens.ownedTokens;
@@ -51,14 +52,13 @@ Hooks.on("deleteToken",(token, sceneId, options) =>{
 
 Hooks.on("controlToken", (object, controlled) => {
     if(controlled){
-        console.log("Controlled");
-        object.routes.displayPlot();
-        canvas.layers[GLOBAL_ROUTES_INDEX].draw();
+        object.routes.livePlotUpdate();
+        object.routes.isSelected();
     }
     else{
         object.routes.removePlot();
         canvas.layers[GLOBAL_ROUTES_INDEX].deactivate();
         canvas.layers[GLOBAL_ROUTES_INDEX].draw();
+        object.routes.isSelected();
     }
 })
-
