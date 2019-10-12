@@ -63,7 +63,8 @@ class Patrols{
             await this._addTokenPatrol(plots);
             this._updateToken();
         }catch(error){
-            if(this.debug) console.log(`Foundry-Patrol: ${error}`);
+            ui.notifications.error("Foundry-Patrol: Critical Error! Please hit F12 and JacobMcAuley a message on discord");
+            console.log(`Foundry-Patrol: -> Generate Route: \n${error}`);
             return error;
         }
     }
@@ -97,9 +98,9 @@ class Patrols{
     _addTokenPatrol(plots){ 
         return new Promise((resolve, reject) => {
             try{
+                this.patrolRoute = this.token.data.flags['foundry-patrol'].routes;
                 let plotPoints = this.patrolRoute[this.sceneId].plots;
                 plotPoints.push({x: plots.x, y: plots.y});
-                if(this.debug) console.log(this.patrolRoute[this.sceneId]);
                 resolve(true);
             } 
             catch(error){
@@ -110,9 +111,7 @@ class Patrols{
     }
 
     _updateToken(){
-        console.log("Called");
         this.token.update(this.sceneId, JSON.parse(JSON.stringify(this.token.data))) // I couldn't think of how to do this and then I saw Felix' solution. Thanks!
-        return true;    
     }
 
     async startPatrol(delay){
@@ -127,7 +126,7 @@ class Patrols{
         this._disableWalking();
     }
 
-    async _handleDelayPeriod(delay){
+    async _handleDelayPeriod(delay = this.delayPeriod){
         const MILLISECONDS = 1000;
         const DEFAULT_SECONDS = 2;
         const INVALID_NUMBER = 0;
@@ -181,7 +180,7 @@ class Patrols{
 
     async _navigationLoop()
     {
-        const sleep = m => new Promise(r => {console.log(m); setTimeout(r, m);});
+        const sleep = m => new Promise(r => setTimeout(r, m));
         let patrolPoints = this.getPlotsFromId; //this.countinousRoutes; [Fix plot.length -1] ---> [0]
         let lastPos = this._determineLastPosition();
 
@@ -276,7 +275,7 @@ class Patrols{
             return this._generateLinearRoute(src, dest, xMod, yMod);
         }
         else{
-            console.log("Foundry-Patrol: Error in generating Continuous route.");
+            if(this.debug) console.log("Foundry-Patrol: Error in generating Continuous route.");
         }
     }
 
@@ -426,19 +425,6 @@ class Patrols{
         canvas.layers[GLOBAL_ROUTES_INDEX].deactivate();
         this.displayPlot();
         canvas.layers[GLOBAL_ROUTES_INDEX].draw();
-    }
-
-    isSelected(){
-        let flags = canvas.scene.data.flags;
-        this.selected = !this.selected;
-        if(this.selected){
-            flags["selected"].push(this);
-            canvas.scene.update({flags: flags});
-        }
-        else{
-            flags["selected"].pop(); // Adjust in the future to handle multiple
-            canvas.scene.update({flags: flags});
-        }
     }
 
     get getPlotsFromId(){
