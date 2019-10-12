@@ -478,7 +478,7 @@ function tokenHUDPatrol(app, html, data){
 
     const addPlotPoint = $(`
         <div class="control-icon" style="margin-left: 4px;"> \ 
-            <img src="icons/svg/clockwork.svg" width="36" height="36" title="mark-point"> \
+            <img src="modules/foundry-patrol/imgs/svg/map.svg" width="36" height="36" title="mark-point"> \
         </div>
     `);
 
