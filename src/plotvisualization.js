@@ -58,9 +58,10 @@ class drawRoute extends PlaceableObject{
     }
 
     _drawDashedLine(offset){ //Method inspired by user: ErikSom located here https://github.com/pixijs/pixi.js/issues/1333
+        console.log("Foundry-Patrol: Route being plotted");
         var dashSize = 0;
         var gapLength = 0;
-        const GRID_SIZE = (canvas.grid.size == null)? 50 : canvas.grid.size/2; // CHANGE ALL 50s to GRIDSIZE;
+        const GRID_SIZE = (canvas.grid.size == null)? 50 : canvas.grid.size/2;
         var pointOne, pointTwo;
         if(offset > 0){
             let progressiveOffset = (this.dash+this.gap)*offset
@@ -110,7 +111,6 @@ class drawRoute extends PlaceableObject{
     }
 
     showRoute(){
-        console.log("Foundry-Patrol: Route being plotted");
         try{ // Error message will get thrown when drawing is removed, as the animation can no longer clear.
             this.drawing.clear();
             this.drawing.lineStyle(5, this.color, 0.7);

@@ -18,7 +18,6 @@ Hooks.on('renderTokenHUD', (app, html, data) => tokenHUDPatrol(app,html,data));
 Hooks.on('canvasInit', () => {
     let flags = canvas.scene.data.flags;
     if(flags.routes == null){
-        console.log("Here");
         flags.routes = [];
         flags.selected = [];
         canvas.scene.update({flags: flags});
@@ -54,12 +53,10 @@ Hooks.on("deleteToken",(token, sceneId, options) =>{
 Hooks.on("controlToken", (object, controlled) => {
     if(controlled){
         object.routes.livePlotUpdate();
-        object.routes.isSelected();
     }
     else{
         object.routes.removePlot();
         canvas.layers[GLOBAL_ROUTES_INDEX].deactivate();
         canvas.layers[GLOBAL_ROUTES_INDEX].draw();
-        object.routes.isSelected();
     }
 })
