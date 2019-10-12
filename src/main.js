@@ -12,7 +12,7 @@ class Patrols{
             x : getProperty(this.token.data, "x"),
             y : getProperty(this.token.data, "y")
         }
-        this.delayPeriod = 2000;
+        this.delayPeriod = [2000];
         this.isDeleted = false;
 
         this.drawnPlot = null;
@@ -23,10 +23,12 @@ class Patrols{
     }
 
     _generateColor(){
+        const HEX_LENGTH = 6;
         let options = "0123456789ABCDEF"
         let color = "0x";
-        for(let i = 0; i < 6; ++i){
-            color += options[Math.floor(Math.random()* 16)]
+
+        for(let i = 0; i < HEX_LENGTH; ++i){
+            color += options[Math.floor(Math.random()* options.length)]
         }
         return color;
     } 
@@ -34,7 +36,7 @@ class Patrols{
     async addPlotPoint(displayInfo = false){
         await this.generateRoute({x: getProperty(this.token.data, "x"), y: getProperty(this.token.data, "y")});
         if(displayInfo) this._addPlotDisplay();
-        await this.livePlotUpdate();
+        this.livePlotUpdate();
         await this.linearWalk();
     }
 
@@ -108,14 +110,16 @@ class Patrols{
     }
 
     _updateToken(){
+        console.log("Called");
         this.token.update(this.sceneId, JSON.parse(JSON.stringify(this.token.data))) // I couldn't think of how to do this and then I saw Felix' solution. Thanks!
         return true;    
     }
 
     async startPatrol(delay){
-        _handleDelayPeriod(delay);
+        await this._handleDelayPeriod(delay);
         this._updatelastRecordedLocation();
         this.isWalking = !this.isWalking;
+
         while(this.isWalking && this._validatePatrol())
         {
             await this._navigationLoop();
@@ -123,34 +127,67 @@ class Patrols{
         this._disableWalking();
     }
 
-    _handleDelayPeriod(delay){
+    async _handleDelayPeriod(delay){
         const MILLISECONDS = 1000;
-        if(delay == null || delay <= 0)
+        const DEFAULT_SECONDS = 2;
+        const INVALID_NUMBER = 0;
+        if(delay.match(/[^0-9&^\-&^\[&^\]&^\,&^\s]/g))
             return;
+
+        delay = this._processDelayRegex(delay);
+
         try{
-            delay = delay.replace(/ /g,"");
-            delay = delay.split(',');
             for(let i = 0; i < delay.length; ++i)
             {
-                delay[i] * MILLISECONDS;
+                if(delay[i] <= INVALID_NUMBER)
+                    delay[i] = (delay[i] * -1) + DEFAULT_SECONDS;
+                delay[i] = delay[i] * MILLISECONDS;
             }
-            console.log(delay);
             this.delayPeriod = delay;
         }
-        catch(error) { // Occurs in the event the user fails to properly pass values. In this case, revert to previously accepted value.
+        catch(error) { // Occurs in the event the user fails to properly pass values. Simply returning will use the previously stored delayPeriod.
             return;
         }
     }
 
+    _processDelayRegex(delay){
+        delay = delay.replace(/ /g,""); // Remove Space
+        let singleValue = delay.match(/[0-9]+/g);
+        
+        let commaSeperated = delay.match(/(\d+(?=,)|(?<=,)\d+)/g); // Checks for values that are strictly digits followed or preceeded by commas.
+        let rangeDelay = delay.match(/(\d+\-\d+)/g)
+        delay = [];
+        if(singleValue.length == 1){
+            delay.push(parseInt(singleValue[0]));
+            return delay;
+        }
+        if(rangeDelay){
+            rangeDelay.forEach(function(rangeSet){
+                let rangeValues = rangeSet.split('-');
+                for(let i = parseInt(rangeValues[0]); i <= parseInt(rangeValues[1]); i++){
+                    delay[delay.length] = i;
+                }
+            });
+        };
+
+        if(commaSeperated){
+            commaSeperated.forEach(function(csvValue){
+                delay[delay.length] = parseInt(csvValue);
+            });     
+        }        
+        if(this.debug) console.log(`Foundry-Patrol: Wait periods include: ${delay}`);
+        return delay;
+    }
+
     async _navigationLoop()
     {
-        const sleep = m => new Promise(r => setTimeout(r, m));
+        const sleep = m => new Promise(r => {console.log(m); setTimeout(r, m);});
         let patrolPoints = this.getPlotsFromId; //this.countinousRoutes; [Fix plot.length -1] ---> [0]
         let lastPos = this._determineLastPosition();
 
         if(!this.onInverseReturn){
             for(let i = lastPos; i < patrolPoints.length; i++){
-                await sleep(this.delayPeriod);
+                await sleep(this.delayPeriod[Math.floor(Math.random() * this.delayPeriod.length)]);
                 if(this.isWalking && !game.paused && !this._wasTokenMoved() && this._validatePatrol() && !this.isDeleted){
                     await this._navigateToNextPoint(patrolPoints[i]);
                 }
@@ -171,7 +208,7 @@ class Patrols{
             this._setInverseReturn();
             lastPos = this._determineLastPosition();
             for(let i = lastPos; i >= 0; i--){
-                await sleep(this.delayPeriod);
+                await sleep(this.delayPeriod[Math.floor(Math.random() * this.delayPeriod.length)]);
                 if(this.isWalking && !game.paused && !this._wasTokenMoved() && this._validatePatrol() && !this.isDeleted){
                     console.log(`Inv: ${i}`);
                     await this._navigateToNextPoint(patrolPoints[i]);
@@ -427,7 +464,11 @@ class Patrols{
     }
     
     get getDelayPeriod(){
-        return this.delayPeriod/1000;
+        let userDisplayDelay = []; // a more visually friendly format.
+        for(let i = 0; i < this.delayPeriod.length; ++i){
+            userDisplayDelay.push(this.delayPeriod[i]/1000);
+        }
+        return userDisplayDelay;
     }
    
     get lastPos(){

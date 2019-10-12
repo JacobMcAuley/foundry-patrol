@@ -18,6 +18,7 @@ Hooks.on('renderTokenHUD', (app, html, data) => tokenHUDPatrol(app,html,data));
 Hooks.on('canvasInit', () => {
     let flags = canvas.scene.data.flags;
     if(flags.routes == null){
+        console.log("Here");
         flags.routes = [];
         flags.selected = [];
         canvas.scene.update({flags: flags});
