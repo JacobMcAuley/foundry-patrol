@@ -106,7 +106,6 @@ class Patrols{
             catch(error){
                 reject(error);
             }
-
         })
     }
 
@@ -126,15 +125,20 @@ class Patrols{
         this._disableWalking();
     }
 
-    async _handleDelayPeriod(delay = this.delayPeriod){
+    async _handleDelayPeriod(delay){
         const MILLISECONDS = 1000;
         const DEFAULT_SECONDS = 2;
         const INVALID_NUMBER = 0;
-        if(delay.match(/[^0-9&^\-&^\[&^\]&^\,&^\s]/g))
-            return;
+        if(delay == null)
+        {
+            return
+        }
+        else{
+            if(delay.match(/[^0-9&^\-&^\[&^\]&^\,&^\s]/g))
+                return;
 
-        delay = this._processDelayRegex(delay);
-
+            delay = this._processDelayRegex(delay);
+        }
         try{
             for(let i = 0; i < delay.length; ++i)
             {
@@ -184,47 +188,51 @@ class Patrols{
         let patrolPoints = this.getPlotsFromId; //this.countinousRoutes; [Fix plot.length -1] ---> [0]
         let lastPos = this._determineLastPosition();
 
-        if(!this.onInverseReturn){
-            for(let i = lastPos; i < patrolPoints.length; i++){
-                await sleep(this.delayPeriod[Math.floor(Math.random() * this.delayPeriod.length)]);
-                if(this.isWalking && !game.paused && !this._wasTokenMoved() && this._validatePatrol() && !this.isDeleted){
-                    await this._navigateToNextPoint(patrolPoints[i]);
-                }
-                else{
-                    if(game.paused == true){
-                        i = --i;
-                    }else{
-                        this._disableWalking();
-                        break;
+        try{
+            if(!this.onInverseReturn){
+                for(let i = lastPos; i < patrolPoints.length; i++){
+                    await sleep(this.delayPeriod[Math.floor(Math.random() * this.delayPeriod.length)]);
+                    if(this.isWalking && !game.paused && !this._wasTokenMoved() && this._validatePatrol() && !this.isDeleted){
+                        await this._navigateToNextPoint(patrolPoints[i]);
                     }
-                }
-                this._storeLastPlotTaken(i);
-            }    
-        }
-
-        if(this.isInverted)
-        {
-            this._setInverseReturn();
-            lastPos = this._determineLastPosition();
-            for(let i = lastPos; i >= 0; i--){
-                await sleep(this.delayPeriod[Math.floor(Math.random() * this.delayPeriod.length)]);
-                if(this.isWalking && !game.paused && !this._wasTokenMoved() && this._validatePatrol() && !this.isDeleted){
-                    console.log(`Inv: ${i}`);
-                    await this._navigateToNextPoint(patrolPoints[i]);
-                }
-                else{
-                    if(game.paused == true){
-                        i = --i;
-                    }else{
-                        this._disableWalking();
-                        break;
+                    else{
+                        if(game.paused == true){
+                            i = --i;
+                        }else{
+                            this._disableWalking();
+                            break;
+                        }
                     }
-                }
-                this._storeLastPlotTaken(i);
+                    this._storeLastPlotTaken(i);
+                }    
             }
-            this._setInverseReturn();    
-        }
 
+            if(this.isInverted)
+            {
+                this._setInverseReturn();
+                lastPos = this._determineLastPosition();
+                for(let i = lastPos; i >= 0; i--){
+                    await sleep(this.delayPeriod[Math.floor(Math.random() * this.delayPeriod.length)]);
+                    if(this.isWalking && !game.paused && !this._wasTokenMoved() && this._validatePatrol() && !this.isDeleted){
+                        console.log(`Inv: ${i}`);
+                        await this._navigateToNextPoint(patrolPoints[i]);
+                    }
+                    else{
+                        if(game.paused == true){
+                            i = --i;
+                        }else{
+                            this._disableWalking();
+                            break;
+                        }
+                    }
+                    this._storeLastPlotTaken(i);
+                }
+                this._setInverseReturn();    
+            }
+        }
+        catch(error){
+            if(this.debug) console.log(`Foundry-Patrol: Error --> Token can not be reference. Likely a massive delete ${error}`);
+        }
     }
 
     async _navigateToNextPoint(plot){
