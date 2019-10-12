@@ -1,7 +1,6 @@
 class RoutesKeyLogger{
     constructor(){
         this.maps = {};
-        this.flags = canvas.scene.data.flags;
         this.keys = {
             'shift' : 16,
             'c'     : 67,
@@ -35,9 +34,9 @@ class RoutesKeyLogger{
     }.bind(this);
 
     _addPlotSelectedToken(){
-        for(let i = 0; i < this.flags["selected"].length; ++i)
+        for(let i = 0; i < canvas.tokens.controlledTokens.length; ++i)
         {
-            this.flags["selected"][i].addPlotPoint();
+            canvas.tokens.controlledTokens[i].routes.addPlotPoint();
         }
     }
 
@@ -53,17 +52,17 @@ class RoutesKeyLogger{
         ui.notifications.info("Routes started for this scene");
     }
 
-    _clearAllRoutes(){
+    _clearAllRoutes(selectedToggle){
         this._generalLoop(Patrols.prototype._deleteRoutes, selectedToggle);
         ui.notifications.info("Routes cleared for this scene");
     }
 
     _generalLoop(method, selectedToggle){
-        let tokens = (this.flags["selected"].length > 0 && selectedToggle) ? this.flags["selected"]: canvas.tokens.ownedTokens;   
+        let tokens = (canvas.tokens.controlledTokens.length > 0 && selectedToggle) ? canvas.tokens.controlledTokens: canvas.tokens.ownedTokens;   
         for(let i = 0; i < tokens.length; ++i)
         {
             if(selectedToggle)
-                method.call(tokens[i]);
+                method.call(tokens[i].routes);
             else
                 method.call(tokens[i].routes);
         }
