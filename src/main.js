@@ -20,6 +20,8 @@ class Patrols{
         this.selected = false;
 
         this.countinousRoutes = [];
+        this.endCountinousRoutes = [];
+
     }
 
     _generateColor(){
@@ -37,7 +39,7 @@ class Patrols{
         await this.generateRoute({x: getProperty(this.token.data, "x"), y: getProperty(this.token.data, "y")});
         if(displayInfo) this._addPlotDisplay();
         this.livePlotUpdate();
-        await this.linearWalk();
+        //await this.linearWalk(); 
     }
 
     _addPlotDisplay(){
@@ -185,9 +187,10 @@ class Patrols{
     async _navigationLoop()
     {
         const sleep = m => new Promise(r => setTimeout(r, m));
-        let patrolPoints = this.getPlotsFromId; //this.countinousRoutes; [Fix plot.length -1] ---> [0]
-        let lastPos = this._determineLastPosition();
-
+        let patrolPoints = this.getPlotsFromId;
+        //await this.linearWalk(true)
+        //let patrolPoints =  this.countinousRoutes.concat(this.endCountinousRoutes); // [Fix plot.length -1] ---> [0]
+        let lastPos = this._determineLastPosition(); //Review logic.
         try{
             if(!this.onInverseReturn){
                 for(let i = lastPos; i < patrolPoints.length; i++){
@@ -210,6 +213,7 @@ class Patrols{
             if(this.isInverted)
             {
                 this._setInverseReturn();
+                
                 lastPos = this._determineLastPosition();
                 for(let i = lastPos; i >= 0; i--){
                     await sleep(this.delayPeriod[Math.floor(Math.random() * this.delayPeriod.length)]);
@@ -245,20 +249,29 @@ class Patrols{
         }
     } 
 
-    async linearWalk(){
+    async linearWalk(generateEnd = 0){
         let plot = await JSON.parse(JSON.stringify(this.getPlotsFromId));
         let len = plot.length - 1;
-        if(len <= 0){
+        if (generateEnd == 1)
+        {
+            const ROUTE_START = 0
+            let xMod = (plot[ROUTE_START].x >= plot[len-1].x) ? 1 : -1;
+            let yMod = (plot[ROUTE_START].y >= plot[len-1].y) ? 1 : -1; 
+            //this.endCountinousRoutes.push(plot[len-1]);
+            await this._generateLinearRoute(this.endCountinousRoutes, plot[len-1], plot[ROUTE_START], xMod, yMod);          
+        }
+        else if(len <= 0){
             this.countinousRoutes.push(plot[0]);
         }
         else{
             let xMod = (plot[len].x >= plot[len-1].x) ? 1 : -1;
             let yMod = (plot[len].y >= plot[len-1].y) ? 1 : -1; 
-            await this._generateLinearRoute(plot[len-1], plot[len], xMod, yMod);
+            await this._generateLinearRoute(this.countinousRoutes, plot[len-1], plot[len], xMod, yMod);
         }
     }
 
-    async _generateLinearRoute(src, dest, xMod, yMod){
+    async _generateLinearRoute(route, src, dest, xMod, yMod){
+        console.log(route);
         const GRID_SIZE = canvas.grid.size;
         if(src.x == dest.x && src.y == dest.y)
         {
@@ -268,19 +281,19 @@ class Patrols{
         {
             src.x += GRID_SIZE * xMod;
             src.y += GRID_SIZE * yMod;
-            this.countinousRoutes.push({x: src.x, y: src.y});
-            return this._generateLinearRoute(src, dest, xMod, yMod);
+            route.push({x: src.x, y: src.y});
+            return this._generateLinearRoute(route, src, dest, xMod, yMod);
         }
         else if(src.x == dest.x && src.y != dest.y)
         {
             src.y += GRID_SIZE * yMod;
-            this.countinousRoutes.push({x: src.x, y: src.y});
-            return this._generateLinearRoute(src, dest, xMod, yMod);
+            route.push({x: src.x, y: src.y});
+            return this._generateLinearRoute(route, src, dest, xMod, yMod);
         }
         else if(src.x != dest.x && src.y == dest.y){
             src.x += GRID_SIZE * xMod;
-            this.countinousRoutes.push({x: src.x, y: src.y});
-            return this._generateLinearRoute(src, dest, xMod, yMod);
+            route.push({x: src.x, y: src.y});
+            return this._generateLinearRoute(route, src, dest, xMod, yMod);
         }
         else{
             if(this.debug) console.log("Foundry-Patrol: Error in generating Continuous route.");
@@ -296,10 +309,10 @@ class Patrols{
                 lastPos = 0;
                 return lastPos;
             }
-            return lastPos;
+            return lastPos - 1;
         }
         if(this.lastPos == 0){
-            this._setInverse();
+            this._setInverseReturn();
             return this.lastPos;
         }
         return this.lastPos - 2;
@@ -374,6 +387,7 @@ class Patrols{
     _deleteRoutes(){
         if(this.getPlotsFromId != false){
             this.isWalking == false;
+            this.patrolRoute = this.token.data.flags['foundry-patrol'].routes; // Change into a function I call it a lot.
             this.patrolRoute[this.sceneId].plots.length = 0;
             this._updateToken();
             this.livePlotUpdate();
@@ -382,6 +396,7 @@ class Patrols{
 
     _undoLast(){
         if(this.getPlotsFromId != false){
+            this.patrolRoute = this.token.data.flags['foundry-patrol'].routes;
             this.patrolRoute[this.sceneId].plots.pop();
             this._updateToken();
             this.livePlotUpdate();
