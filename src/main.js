@@ -21,7 +21,6 @@ class Patrols{
 
         this.countinousRoutes = [];
         this.endCountinousRoutes = [];
-
     }
 
     _generateColor(){
@@ -100,7 +99,7 @@ class Patrols{
     _addTokenPatrol(plots){ 
         return new Promise((resolve, reject) => {
             try{
-                this.patrolRoute = this.token.data.flags['foundry-patrol'].routes;
+                this._updatePatrol();
                 let plotPoints = this.patrolRoute[this.sceneId].plots;
                 plotPoints.push({x: plots.x, y: plots.y});
                 resolve(true);
@@ -119,10 +118,11 @@ class Patrols{
         await this._handleDelayPeriod(delay);
         this._updatelastRecordedLocation();
         this.isWalking = !this.isWalking;
-
+        let cycle = 0;
         while(this.isWalking && this._validatePatrol())
         {
-            await this._navigationLoop();
+            await this._navigationCycle(cycle);
+            cycle++;
         }
         this._disableWalking();
     }
@@ -184,58 +184,66 @@ class Patrols{
         return delay;
     }
 
-    async _navigationLoop()
+    async _navigationCycle(cycle)
     {
-        const sleep = m => new Promise(r => setTimeout(r, m));
+        const settings = {
+            INCREMENT : 1,
+            DECREMENT : -1,
+            PLOT_SIZE : this.getPlotsFromId.length,
+            RETURN_SIZE : [].length,
+            ON_INVERSE_FALSE: false,
+            ON_INVERSE_TRUE: true,
+            OPERATOR_GREATER : function(a, b) {return a >= b},
+            OPERATOR_LESS : function(a, b) {return a < b},
+        }
         let patrolPoints = this.getPlotsFromId;
         //await this.linearWalk(true)
         //let patrolPoints =  this.countinousRoutes.concat(this.endCountinousRoutes); // [Fix plot.length -1] ---> [0]
-        let lastPos = this._determineLastPosition(); //Review logic.
         try{
-            if(!this.onInverseReturn){
-                for(let i = lastPos; i < patrolPoints.length; i++){
-                    await sleep(this.delayPeriod[Math.floor(Math.random() * this.delayPeriod.length)]);
-                    if(this.isWalking && !game.paused && !this._wasTokenMoved() && this._validatePatrol() && !this.isDeleted){
-                        await this._navigateToNextPoint(patrolPoints[i]);
-                    }
-                    else{
-                        if(game.paused == true){
-                            i = --i;
-                        }else{
-                            this._disableWalking();
-                            break;
-                        }
-                    }
-                    this._storeLastPlotTaken(i);
-                }    
-            }
-
-            if(this.isInverted)
-            {
-                this._setInverseReturn();
-                
-                lastPos = this._determineLastPosition();
-                for(let i = lastPos; i >= 0; i--){
-                    await sleep(this.delayPeriod[Math.floor(Math.random() * this.delayPeriod.length)]);
-                    if(this.isWalking && !game.paused && !this._wasTokenMoved() && this._validatePatrol() && !this.isDeleted){
-                        console.log(`Inv: ${i}`);
-                        await this._navigateToNextPoint(patrolPoints[i]);
-                    }
-                    else{
-                        if(game.paused == true){
-                            i = --i;
-                        }else{
-                            this._disableWalking();
-                            break;
-                        }
-                    }
-                    this._storeLastPlotTaken(i);
-                }
-                this._setInverseReturn();    
-            }
+            let lastPos = await this._determineLastPosition(cycle); 
+            await this._navigationLoop(patrolPoints, lastPos, settings.PLOT_SIZE, settings.OPERATOR_LESS, settings.ON_INVERSE_FALSE, settings.INCREMENT);
+            lastPos = await this._determineLastPosition(cycle);
+            await this._navigationLoop(patrolPoints, lastPos, settings.RETURN_SIZE, settings.OPERATOR_GREATER, settings.ON_INVERSE_TRUE, settings.DECREMENT);
         }
         catch(error){
-            if(this.debug) console.log(`Foundry-Patrol: Error --> Token can not be reference. Likely a massive delete ${error}`);
+            if(this.debug) console.log(`Foundry-Patrol: Error --> Token can not be referenced. Likely a massive delete ${error}`);
+        }
+    }
+
+    async _navigationLoop(patrolPoints, iterator, comparison, operation, onReturn, increment){
+        const sleep = m => new Promise(r => setTimeout(r, m));
+        if(this.onInverseReturn == onReturn){
+            for(iterator; operation(iterator, comparison); iterator = iterator + (increment)){
+                await sleep(this.delayPeriod[Math.floor(Math.random() * this.delayPeriod.length)]);
+                if(this.isWalking && !game.paused && !this._wasTokenMoved() && this._validatePatrol() && !this.isDeleted){
+                    await this._navigateToNextPoint(patrolPoints[iterator]);
+                    this._storeLastPlotTaken(iterator);
+                }
+                else{
+                    if(game.paused == true){
+                        iterator = --iterator;
+                    }else{
+                        this._disableWalking();
+                        break;
+                    }
+                }
+            }
+            if(this.isInverted){
+                this._setInverseReturn();
+            }   
+        }
+    }
+
+    async _determineLastPosition(cycle){
+        let lastPos = this.patrolRoute[this.sceneId].lastPos;
+        if(!this.isInverted){
+            if(cycle != 0 && lastPos == this.getPlotsFromId.length - 1){
+                return 0;
+            }
+            return lastPos;
+        }
+        else{
+            return lastPos;
         }
     }
 
@@ -300,23 +308,6 @@ class Patrols{
         }
     }
 
-
-    _determineLastPosition(){ // Rework this.
-        let patrolPoints = this.getPlotsFromId;
-        let lastPos = this.lastPos + 1;
-        if(!this.onInverseReturn){
-            if(lastPos >= patrolPoints.length){
-                lastPos = 0;
-                return lastPos;
-            }
-            return lastPos - 1;
-        }
-        if(this.lastPos == 0){
-            this._setInverseReturn();
-            return this.lastPos;
-        }
-        return this.lastPos - 2;
-    }
 
     _wasTokenMoved(){
         try{
@@ -387,8 +378,9 @@ class Patrols{
     _deleteRoutes(){
         if(this.getPlotsFromId != false){
             this.isWalking == false;
-            this.patrolRoute = this.token.data.flags['foundry-patrol'].routes; // Change into a function I call it a lot.
+            this._updatePatrol();
             this.patrolRoute[this.sceneId].plots.length = 0;
+            this.patrolRoute[this.sceneId].lastPos = 0;
             this._updateToken();
             this.livePlotUpdate();
         }
@@ -396,7 +388,7 @@ class Patrols{
 
     _undoLast(){
         if(this.getPlotsFromId != false){
-            this.patrolRoute = this.token.data.flags['foundry-patrol'].routes;
+            this._updatePatrol();
             this.patrolRoute[this.sceneId].plots.pop();
             this._updateToken();
             this.livePlotUpdate();
@@ -414,6 +406,10 @@ class Patrols{
 
     _disableWalking(){
         this.isWalking = false;
+    }
+
+    _updatePatrol(){
+        this.patrolRoute = this.token.data.flags['foundry-patrol'].routes;
     }
 
     displayPlot(){
