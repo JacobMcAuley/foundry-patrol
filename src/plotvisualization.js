@@ -14,7 +14,7 @@ class RoutesLayer extends CanvasLayer
         }
     }
 
-    async draw()
+    async draw(fowardBackwards = false)
     {
         try{
             await super.draw();
@@ -22,7 +22,7 @@ class RoutesLayer extends CanvasLayer
         
             let objectData = canvas.scene.data.flags.routes;
             for ( let data of objectData ) {
-              let obj = await this.drawObject(data);
+              let obj = await this.drawObject(data, fowardBackwards);
               this.objects.addChild(obj.drawing);
             }
         }
@@ -39,14 +39,14 @@ class RoutesLayer extends CanvasLayer
         super.deactivate();
     }
 
-    async drawObject(data){
-        let obj = new drawRoute(data);
+    async drawObject(data, fowardBackwards){
+        let obj = new drawRoute(data, fowardBackwards);
         return obj.showRoute();
     }
 }
 
 class drawRoute extends PlaceableObject{
-    constructor(data) //points, dash, gap, offset)
+    constructor(data, fowardBackwards) //points, dash, gap, offset)
     {
         super();
         this.points = JSON.parse(JSON.stringify(data.points)); // Deep copy
@@ -55,6 +55,7 @@ class drawRoute extends PlaceableObject{
         this.offset = data.offset;
         this.color = data.color;
         this.drawing = new PIXI.Graphics();
+        this.fowardBackwards = fowardBackwards;
     }
 
     _drawDashedLine(offset){ //Method inspired by user: ErikSom located here https://github.com/pixijs/pixi.js/issues/1333
@@ -74,7 +75,12 @@ class drawRoute extends PlaceableObject{
         for(let i = this.points.length - 1; i >= 0; --i){
             pointOne = this.points[i];
             if(i == 0)
-                pointTwo = this.points[this.points.length - 1]; // Forwards - backwards
+            {
+                if(this.fowardBackwards)
+                    pointTwo = this.points[i];  
+                else
+                    pointTwo = this.points[this.points.length - 1]; // Forwards - backwards
+            }
             else
                 pointTwo = this.points[i-1];
             let dX = (pointTwo.x + GRID_SIZE) - (pointOne.x + GRID_SIZE); 
