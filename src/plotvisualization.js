@@ -46,11 +46,11 @@ class RoutesLayer extends CanvasLayer
 }
 
 class drawRoute extends PlaceableObject{
-    constructor(data) //points, dash, gap, offset)
+    constructor(data)
     {
         super();
         this.fb = data.fb;
-        this.points = JSON.parse(JSON.stringify(data.points)); // Deep copy
+        this.points = JSON.parse(JSON.stringify(data.points)); 
         this.dash = data.dash;
         this.gap = data.gap;
         this.offset = data.offset;
@@ -116,16 +116,17 @@ class drawRoute extends PlaceableObject{
     }
 
     showRoute(){
-        try{ // Error message will get thrown when drawing is removed, as the animation can no longer clear.
+        try{ 
             this.drawing.clear();
-            this.drawing.lineStyle(5, this.color, 0.7);
+            this.drawing.lineStyle(5, this.color, 0.7); // Magic numbers: refer to lineStyle by PIXI for details.
             var offsetInterval = this.offset;
             this._drawDashedLine((Date.now()%offsetInterval+1)/offsetInterval);
             requestAnimationFrame(this.showRoute.bind(this));
             return this;
         }
-        catch(err){
-            console.log("Foundry-Patrol: Route cleared");
+        catch(err){ 
+            // No handling required
+            // Error message will get thrown when drawing is removed, as the animation can no longer clear.
         }
     }
 }

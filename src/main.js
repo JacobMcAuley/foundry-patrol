@@ -415,6 +415,7 @@ class Patrols{
 
     _setInverse(){
         this.inverted = !this.inverted;
+        this.patrolRoute[this.sceneId].lastPos = 0;
         this.livePlotUpdate(this.inverted);
     }
 
