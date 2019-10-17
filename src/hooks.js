@@ -6,7 +6,6 @@ Hooks.on('init', () => {
 });
 
 Hooks.on('ready', () => {
-    console.log(`Foundry-Patrol: Adding route -> ${canvas.stage.addChild(new RoutesLayer)}`);
     GLOBAL_ROUTES_INDEX = canvas.layers.findIndex(function(element){
         return element.constructor.name == "RoutesLayer"
     });
@@ -52,7 +51,7 @@ Hooks.on("deleteToken",(token, sceneId, options) =>{
 
 Hooks.on("controlToken", (object, controlled) => {
     if(controlled){
-        object.routes.livePlotUpdate(object.routes.isInverted);
+        object.routes.livePlotUpdate();
     }
     else{
         object.routes.removePlot();

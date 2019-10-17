@@ -14,7 +14,7 @@ class RoutesLayer extends CanvasLayer
         }
     }
 
-    async draw(fowardBackwards = false)
+    async draw()
     {
         try{
             await super.draw();
@@ -22,7 +22,7 @@ class RoutesLayer extends CanvasLayer
         
             let objectData = canvas.scene.data.flags.routes;
             for ( let data of objectData ) {
-              let obj = await this.drawObject(data, fowardBackwards);
+              let obj = await this.drawObject(data);
               this.objects.addChild(obj.drawing);
             }
         }
@@ -39,27 +39,26 @@ class RoutesLayer extends CanvasLayer
         super.deactivate();
     }
 
-    async drawObject(data, fowardBackwards){
-        let obj = new drawRoute(data, fowardBackwards);
+    async drawObject(data){
+        let obj = new drawRoute(data);
         return obj.showRoute();
     }
 }
 
 class drawRoute extends PlaceableObject{
-    constructor(data, fowardBackwards) //points, dash, gap, offset)
+    constructor(data) //points, dash, gap, offset)
     {
         super();
+        this.fb = data.fb;
         this.points = JSON.parse(JSON.stringify(data.points)); // Deep copy
         this.dash = data.dash;
         this.gap = data.gap;
         this.offset = data.offset;
         this.color = data.color;
         this.drawing = new PIXI.Graphics();
-        this.fowardBackwards = fowardBackwards;
     }
 
     _drawDashedLine(offset){ //Method inspired by user: ErikSom located here https://github.com/pixijs/pixi.js/issues/1333
-        console.log("Foundry-Patrol: Route being plotted");
         var dashSize = 0;
         var gapLength = 0;
         const GRID_SIZE = (canvas.grid.size == null)? 50 : canvas.grid.size/2;
@@ -76,7 +75,7 @@ class drawRoute extends PlaceableObject{
             pointOne = this.points[i];
             if(i == 0)
             {
-                if(this.fowardBackwards)
+                if(this.fb)
                     pointTwo = this.points[i];  
                 else
                     pointTwo = this.points[this.points.length - 1]; // Forwards - backwards

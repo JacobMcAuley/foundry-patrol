@@ -202,7 +202,7 @@ class Patrols{
     {
         //let patrolPoints = this.getPlotsFromId;
         //await this.linearWalk(true)
-        let patrolPoints = this.getContinuousFromId  //.concat(this.endCountinousRoutes); // [Fix plot.length -1] ---> [0]
+        let patrolPoints = this.getPlotsFromId; //.concat(this.endCountinousRoutes); // [Fix plot.length -1] ---> [0]
 
         const settings = {
             INCREMENT : 1,
@@ -295,7 +295,6 @@ class Patrols{
     }
 
     async _generateLinearRoute(route, src, dest, xMod, yMod){
-        console.log(route);
         const GRID_SIZE = canvas.grid.size;
         if(src.x == dest.x && src.y == dest.y)
         {
@@ -432,7 +431,7 @@ class Patrols{
         this.patrolRoute = this.token.data.flags['foundry-patrol'].routes;
     }
 
-    displayPlot(){
+    displayPlot(forwardsBackwards){
         let flags = canvas.scene.data.flags;
         if(this.getPlotsFromId.length > 0){
             this.drawnPlot = new drawRoute({
@@ -440,7 +439,8 @@ class Patrols{
                 dash: 25,
                 gap: 25,
                 offset: 750,
-                color : this.color
+                color : this.color,
+                fb : forwardsBackwards
             });
             flags.routes.push(this.drawnPlot);
             canvas.scene.update({flags: flags});
@@ -459,11 +459,11 @@ class Patrols{
         }
     }
 
-    livePlotUpdate(forwardsBackwards = false){
+    livePlotUpdate(){
         this.removePlot();
         canvas.layers[GLOBAL_ROUTES_INDEX].deactivate();
-        this.displayPlot();
-        canvas.layers[GLOBAL_ROUTES_INDEX].draw(forwardsBackwards);
+        this.displayPlot(this.isInverted);
+        canvas.layers[GLOBAL_ROUTES_INDEX].draw();
     }
 
     get getPlotsFromId(){
@@ -477,10 +477,20 @@ class Patrols{
     }
 
     get getContinuousFromId(){
-        return this.patrolRoute[this.sceneId].countinousRoutes; 
+        try{
+            return this.patrolRoute[this.sceneId].countinousRoutes; 
+        }
+        catch{
+            return [];
+        }
     }
     get getEndContinuousFromId(){
-        return this.patrolRoute[this.sceneId].endCountinousRoutes; 
+        try{
+            return this.patrolRoute[this.sceneId].endCountinousRoutes; 
+        }
+        catch {
+            return [];
+        }
     }
 
     get isInverted(){
