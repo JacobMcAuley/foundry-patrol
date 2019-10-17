@@ -52,7 +52,7 @@ Hooks.on("deleteToken",(token, sceneId, options) =>{
 
 Hooks.on("controlToken", (object, controlled) => {
     if(controlled){
-        object.routes.livePlotUpdate();
+        object.routes.livePlotUpdate(object.routes.isInverted);
     }
     else{
         object.routes.removePlot();
