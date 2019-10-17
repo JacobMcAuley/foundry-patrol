@@ -16,13 +16,20 @@ class Patrols{
         this.isDeleted = false;
 
         this.drawnPlot = null;
-        this.color = this._generateColor();
+        this.color = this._setColor();
         this.selected = false;
 
-        this.countinousRoutes = [];
-        this.endCountinousRoutes = [];
+        this._doesSceneExist();
     }
 
+    _setColor(){
+        try{
+            return this.token.data.flags['foundry-patrol'].routes[this.sceneId].color;
+        }
+        catch (error){
+            return undefined;
+        }
+    }
     _generateColor(){
         const HEX_LENGTH = 6;
         let options = "0123456789ABCDEF"
@@ -35,10 +42,11 @@ class Patrols{
     } 
 
     async addPlotPoint(displayInfo = false){
+        this.token.data.flags['foundry-patrol'].routes[this.sceneId].color;
         await this.generateRoute({x: getProperty(this.token.data, "x"), y: getProperty(this.token.data, "y")});
         if(displayInfo) this._addPlotDisplay();
         this.livePlotUpdate();
-        //await this.linearWalk(); 
+        await this.linearWalk(); 
     }
 
     _addPlotDisplay(){
@@ -87,12 +95,18 @@ class Patrols{
     }
 
     _generateScene(){
+        let color = this._generateColor();
+        this.color = color;
         this.patrolRoute[this.sceneId] = {
+            color: color,
             plots: [],
+            countinousRoutes : [],
+            endCountinousRoutes : [],
             enabled: false,
             lastPos: 0,
             onInverseReturn: false
         }
+        this._updateToken();
         return true;
     }
 
@@ -186,23 +200,25 @@ class Patrols{
 
     async _navigationCycle(cycle)
     {
+        //let patrolPoints = this.getPlotsFromId;
+        //await this.linearWalk(true)
+        let patrolPoints = this.getContinuousFromId  //.concat(this.endCountinousRoutes); // [Fix plot.length -1] ---> [0]
+
         const settings = {
             INCREMENT : 1,
             DECREMENT : -1,
-            PLOT_SIZE : this.getPlotsFromId.length,
+            PLOT_SIZE : patrolPoints.length,
             RETURN_SIZE : [].length,
             ON_INVERSE_FALSE: false,
             ON_INVERSE_TRUE: true,
             OPERATOR_GREATER : function(a, b) {return a >= b},
             OPERATOR_LESS : function(a, b) {return a < b},
         }
-        let patrolPoints = this.getPlotsFromId;
-        //await this.linearWalk(true)
-        //let patrolPoints =  this.countinousRoutes.concat(this.endCountinousRoutes); // [Fix plot.length -1] ---> [0]
+
         try{
-            let lastPos = await this._determineLastPosition(cycle); 
+            let lastPos = await this._determineLastPosition(cycle, patrolPoints); 
             await this._navigationLoop(patrolPoints, lastPos, settings.PLOT_SIZE, settings.OPERATOR_LESS, settings.ON_INVERSE_FALSE, settings.INCREMENT);
-            lastPos = await this._determineLastPosition(cycle);
+            lastPos = await this._determineLastPosition(cycle, patrolPoints);
             await this._navigationLoop(patrolPoints, lastPos, settings.RETURN_SIZE, settings.OPERATOR_GREATER, settings.ON_INVERSE_TRUE, settings.DECREMENT);
         }
         catch(error){
@@ -234,10 +250,10 @@ class Patrols{
         }
     }
 
-    async _determineLastPosition(cycle){
+    async _determineLastPosition(cycle, plots){
         let lastPos = this.patrolRoute[this.sceneId].lastPos;
         if(!this.isInverted){
-            if(cycle != 0 && lastPos == this.getPlotsFromId.length - 1){
+            if(cycle != 0 && lastPos == plots.length - 1){
                 return 0;
             }
             return lastPos;
@@ -265,16 +281,16 @@ class Patrols{
             const ROUTE_START = 0
             let xMod = (plot[ROUTE_START].x >= plot[len-1].x) ? 1 : -1;
             let yMod = (plot[ROUTE_START].y >= plot[len-1].y) ? 1 : -1; 
-            //this.endCountinousRoutes.push(plot[len-1]);
-            await this._generateLinearRoute(this.endCountinousRoutes, plot[len-1], plot[ROUTE_START], xMod, yMod);          
+            await this._generateLinearRoute(this.patrolRoute[this.sceneId].endCountinousRoutes, plot[len-1], plot[ROUTE_START], xMod, yMod);          
         }
         else if(len <= 0){
-            this.countinousRoutes.push(plot[0]);
+            this.patrolRoute[this.sceneId].countinousRoutes.push(plot[0]);
+            this._updateToken();
         }
         else{
             let xMod = (plot[len].x >= plot[len-1].x) ? 1 : -1;
             let yMod = (plot[len].y >= plot[len-1].y) ? 1 : -1; 
-            await this._generateLinearRoute(this.countinousRoutes, plot[len-1], plot[len], xMod, yMod);
+            await this._generateLinearRoute(this.patrolRoute[this.sceneId].countinousRoutes, plot[len-1], plot[len], xMod, yMod);
         }
     }
 
@@ -283,6 +299,7 @@ class Patrols{
         const GRID_SIZE = canvas.grid.size;
         if(src.x == dest.x && src.y == dest.y)
         {
+            this._updateToken();
             return true;
         }
         else if(src.x != dest.x && src.y != dest.y)
@@ -380,13 +397,15 @@ class Patrols{
             this.isWalking == false;
             this._updatePatrol();
             this.patrolRoute[this.sceneId].plots.length = 0;
+            this.patrolRoute[this.sceneId].countinousRoutes.length = 0;
+            this.patrolRoute[this.sceneId].endCountinousRoutes.length = 0;
             this.patrolRoute[this.sceneId].lastPos = 0;
             this._updateToken();
             this.livePlotUpdate();
         }
     }
 
-    _undoLast(){
+    _undoLast(){ // Cont fix required
         if(this.getPlotsFromId != false){
             this._updatePatrol();
             this.patrolRoute[this.sceneId].plots.pop();
@@ -397,6 +416,7 @@ class Patrols{
 
     _setInverse(){
         this.inverted = !this.inverted;
+        this.livePlotUpdate(this.inverted);
     }
 
     _setInverseReturn(){
@@ -439,11 +459,11 @@ class Patrols{
         }
     }
 
-    livePlotUpdate(){
+    livePlotUpdate(forwardsBackwards = false){
         this.removePlot();
         canvas.layers[GLOBAL_ROUTES_INDEX].deactivate();
         this.displayPlot();
-        canvas.layers[GLOBAL_ROUTES_INDEX].draw();
+        canvas.layers[GLOBAL_ROUTES_INDEX].draw(forwardsBackwards);
     }
 
     get getPlotsFromId(){
@@ -454,6 +474,13 @@ class Patrols{
             if(this.debug) console.log(`Foundry-Patrol: ERROR -> ${error}`);
             return false;
         }
+    }
+
+    get getContinuousFromId(){
+        return this.patrolRoute[this.sceneId].countinousRoutes; 
+    }
+    get getEndContinuousFromId(){
+        return this.patrolRoute[this.sceneId].endCountinousRoutes; 
     }
 
     get isInverted(){
