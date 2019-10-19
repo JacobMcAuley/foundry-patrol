@@ -46,10 +46,11 @@ class RoutesLayer extends CanvasLayer
 }
 
 class drawRoute extends PlaceableObject{
-    constructor(data) //points, dash, gap, offset)
+    constructor(data)
     {
         super();
-        this.points = JSON.parse(JSON.stringify(data.points)); // Deep copy
+        this.fb = data.fb;
+        this.points = JSON.parse(JSON.stringify(data.points)); 
         this.dash = data.dash;
         this.gap = data.gap;
         this.offset = data.offset;
@@ -58,7 +59,6 @@ class drawRoute extends PlaceableObject{
     }
 
     _drawDashedLine(offset){ //Method inspired by user: ErikSom located here https://github.com/pixijs/pixi.js/issues/1333
-        console.log("Foundry-Patrol: Route being plotted");
         var dashSize = 0;
         var gapLength = 0;
         const GRID_SIZE = (canvas.grid.size == null)? 50 : canvas.grid.size/2;
@@ -74,7 +74,12 @@ class drawRoute extends PlaceableObject{
         for(let i = this.points.length - 1; i >= 0; --i){
             pointOne = this.points[i];
             if(i == 0)
-                pointTwo = this.points[this.points.length - 1]; // Forwards - backwards
+            {
+                if(this.fb)
+                    pointTwo = this.points[i];  
+                else
+                    pointTwo = this.points[this.points.length - 1]; // Forwards - backwards
+            }
             else
                 pointTwo = this.points[i-1];
             let dX = (pointTwo.x + GRID_SIZE) - (pointOne.x + GRID_SIZE); 
@@ -111,16 +116,17 @@ class drawRoute extends PlaceableObject{
     }
 
     showRoute(){
-        try{ // Error message will get thrown when drawing is removed, as the animation can no longer clear.
+        try{ 
             this.drawing.clear();
-            this.drawing.lineStyle(5, this.color, 0.7);
+            this.drawing.lineStyle(5, this.color, 0.7); // Magic numbers: refer to lineStyle by PIXI for details.
             var offsetInterval = this.offset;
             this._drawDashedLine((Date.now()%offsetInterval+1)/offsetInterval);
             requestAnimationFrame(this.showRoute.bind(this));
             return this;
         }
-        catch(err){
-            console.log("Foundry-Patrol: Route cleared");
+        catch(err){ 
+            // No handling required
+            // Error message will get thrown when drawing is removed, as the animation can no longer clear.
         }
     }
 }
