@@ -6,6 +6,7 @@ class Patrols{
         this.isWalking = false;
         this.sceneId = canvas.id;
         this.inverted = false;
+        this.linearMode = false;
         this.token = token;
         this.patrolRoute = this.token.data.flags['foundry-patrol'].routes;
         this.lastRecordedLocation = {
@@ -46,7 +47,8 @@ class Patrols{
         await this.generateRoute({x: getProperty(this.token.data, "x"), y: getProperty(this.token.data, "y")});
         if(displayInfo) this._addPlotDisplay();
         this.livePlotUpdate();
-        await this.linearWalk(); 
+        await this.linearWalk();
+        await this.linearWalk(true); 
     }
 
     _addPlotDisplay(){
@@ -202,7 +204,7 @@ class Patrols{
     {
         //let patrolPoints = this.getPlotsFromId;
         //await this.linearWalk(true)
-        let patrolPoints = this.getPlotsFromId; //.concat(this.endCountinousRoutes); // [Fix plot.length -1] ---> [0]
+        let patrolPoints = (this.isLinear)? this.getContinuousFromId: this.getPlotsFromId; //.concat(this.endCountinousRoutes); // [Fix plot.length -1] ---> [0]
 
         const settings = {
             INCREMENT : 1,
@@ -216,7 +218,7 @@ class Patrols{
         }
 
         try{
-            let lastPos = await this._determineLastPosition(cycle, patrolPoints); 
+            let lastPos = await this._determineLastPosition(cycle, patrolPoints);
             await this._navigationLoop(patrolPoints, lastPos, settings.PLOT_SIZE, settings.OPERATOR_LESS, settings.ON_INVERSE_FALSE, settings.INCREMENT);
             lastPos = await this._determineLastPosition(cycle, patrolPoints);
             await this._navigationLoop(patrolPoints, lastPos, settings.RETURN_SIZE, settings.OPERATOR_GREATER, settings.ON_INVERSE_TRUE, settings.DECREMENT);
@@ -237,14 +239,14 @@ class Patrols{
                 }
                 else{
                     if(game.paused == true){
-                        iterator = --iterator;
+                        iterator = iterator - increment;
                     }else{
                         this._disableWalking();
                         break;
                     }
                 }
             }
-            if(this.isInverted){
+            if(this.onInverseReturn || this.inverted){
                 this._setInverseReturn();
             }   
         }
@@ -273,20 +275,26 @@ class Patrols{
         }
     } 
 
-    async linearWalk(generateEnd = 0){
+    async linearWalk(generateEnd = false){
         let plot = await JSON.parse(JSON.stringify(this.getPlotsFromId));
         let len = plot.length - 1;
-        if (generateEnd == 1)
+
+        if (generateEnd)
         {
             const ROUTE_START = 0
-            let xMod = (plot[ROUTE_START].x >= plot[len-1].x) ? 1 : -1;
-            let yMod = (plot[ROUTE_START].y >= plot[len-1].y) ? 1 : -1; 
-            await this._generateLinearRoute(this.patrolRoute[this.sceneId].endCountinousRoutes, plot[len-1], plot[ROUTE_START], xMod, yMod);          
+            let xMod = (plot[ROUTE_START].x >= plot[len].x) ? 1 : -1;
+            let yMod = (plot[ROUTE_START].y >= plot[len].y) ? 1 : -1; 
+            this.patrolRoute[this.sceneId].endCountinousRoutes.length = 0;
+            await this._generateLinearRoute(this.patrolRoute[this.sceneId].endCountinousRoutes, plot[len], plot[ROUTE_START], xMod, yMod);          
         }
-        else if(len <= 0){
+
+
+        else if(plot.length < 2){
+            console.log(plot[0])
             this.patrolRoute[this.sceneId].countinousRoutes.push(plot[0]);
             this._updateToken();
         }
+
         else{
             let xMod = (plot[len].x >= plot[len-1].x) ? 1 : -1;
             let yMod = (plot[len].y >= plot[len-1].y) ? 1 : -1; 
@@ -298,6 +306,7 @@ class Patrols{
         const GRID_SIZE = canvas.grid.size;
         if(src.x == dest.x && src.y == dest.y)
         {
+            console.log(route);
             this._updateToken();
             return true;
         }
@@ -413,6 +422,11 @@ class Patrols{
         }
     }
 
+    _setLinear(){
+        this.linearMode = !this.linearMode;
+        this.patrolRoute[this.sceneId].lastPos = 0;
+    }
+
     _setInverse(){
         this.inverted = !this.inverted;
         this.patrolRoute[this.sceneId].lastPos = 0;
@@ -479,17 +493,9 @@ class Patrols{
 
     get getContinuousFromId(){
         try{
-            return this.patrolRoute[this.sceneId].countinousRoutes; 
+            return this.patrolRoute[this.sceneId].countinousRoutes.concat(this.patrolRoute[this.sceneId].endCountinousRoutes); 
         }
         catch{
-            return [];
-        }
-    }
-    get getEndContinuousFromId(){
-        try{
-            return this.patrolRoute[this.sceneId].endCountinousRoutes; 
-        }
-        catch {
             return [];
         }
     }
@@ -521,11 +527,16 @@ class Patrols{
     get getAllRoutes(){
         return this.patrolRoute;
     }
+    
+    get isLinear(){
+        return this.linearMode;
+    }
 }
 
 function tokenHUDPatrol(app, html, data){
     let token = app.object;
     let isPatrolling = token.routes.isPatrolling;
+    let isLinear = token.routes.isLinear;
     let isInverted = token.routes.isInverted;
 
     const plotDiv = $(`
@@ -535,30 +546,44 @@ function tokenHUDPatrol(app, html, data){
 
     const addPlotPoint = $(`
         <div class="control-icon" style="margin-left: 4px;"> \ 
-            <img src="modules/foundry-patrol/imgs/svg/map.svg" width="36" height="36" title="mark-point"> \
+            <img src="modules/foundry-patrol/imgs/svg/map.svg" width="36" height="36" title="Add Point"> \
         </div>
     `);
 
-    const deletePlotPoint = $(`<i class="control-icon fas fa-trash-alt" style="margin-left: 4px;"></i>`);
+    const deletePlotPoint = $(`<i class="control-icon fas fa-trash-alt" style="margin-left: 4px;" title="Delete Point"></i>`);
 
-    var plotDirection = $(`<i class="control-icon fas fa-recycle" style="margin-left: 4px;"></i>`);
+    let plotDirection = $(`<i class="control-icon fas fa-recycle" style="margin-left: 4px;" title="Cycle Mode"></i>`);
 
     if(isInverted){
-        plotDirection = $(`<i class="control-icon fas fa-arrows-alt-h" style="margin-left: 4px;"></i>`);
+        plotDirection = $(`<i class="control-icon fas fa-arrows-alt-h" style="margin-left: 4px;" title="Forwards-Backwards Mode"></i>`);
     }
 
     const patrolDiv = $(`
-        <div class="patrolDiv" style="display: flex; flex-direction: row; justify-content: center; align-items:center; margin-right: 7px;">\
+        <div class="patrolDiv" style="display: flex; flex-direction: row; justify-content: center; align-items:center; margin-right: 48px;">\
         </div>
     `);
     
-    var patrolWalkHUD = $(`<i class="fas fa-walking title control-icon" style="margin-left: 4px;"></i>`)
-    
-    if(isPatrolling){
-        patrolWalkHUD = $(`<i class="fas fa-times title control-icon" style="margin-left: 4px;"></i>`)
+    let linearWalkHUD = $(`
+        <div class="control-icon" style="margin-left: 4px;"> \ 
+            <img id="linearHUD" src="modules/foundry-patrol/imgs/svg/linear.svg" width="36" height="36" title="Linear Walk"> \
+        </div>
+    `);
+
+    if(isLinear){
+        linearWalkHUD = $(`
+            <div class="lineWalk control-icon" style="margin-left: 4px;"> \ 
+                <img id="linearHUD" src="modules/foundry-patrol/imgs/svg/line.svg" width="36" height="36" title="Plot Walk"> \
+            </div>
+        `);
     }
-    
-    const patrolDelayHUD = $(`<input class="control-icon"  style="margin-left: 4px;" type="text" id="patrolWait" value=${token.routes.getDelayPeriod} name="patrolWait">`)
+
+    let patrolWalkHUD = $(`<i class="fas fa-walking title control-icon" style="margin-left: 4px;" title="Start route"></i>`);
+
+    if(isPatrolling){
+        patrolWalkHUD = $(`<i class="fas fa-times title control-icon" style="margin-left: 4px;" title="Stop route"></i>`)
+    }
+
+    const patrolDelayHUD = $(`<input class="control-icon"  style="margin-left: 4px;" type="text" id="patrolWait" value=${token.routes.getDelayPeriod} name="patrolWait" title="Delay period">`)
 
     if(game.user.isGM || game.settings.get("foundry-patrol", "enablePlayerPatrol"))
     {
@@ -567,6 +592,7 @@ function tokenHUDPatrol(app, html, data){
         html.find('.plotDiv').append(deletePlotPoint);
         html.find('.plotDiv').append(plotDirection);
         html.find('.left').append(patrolDiv);
+        html.find('.patrolDiv').append(linearWalkHUD);
         html.find('.patrolDiv').append(patrolWalkHUD);
         html.find('.patrolDiv').append(patrolDelayHUD);
 
@@ -578,6 +604,16 @@ function tokenHUDPatrol(app, html, data){
             token.routes.deleteProcess();
         });
 
+        linearWalkHUD.click(ev => {
+            let src = ev.target.getAttribute('src')
+            if(src == "modules/foundry-patrol/imgs/svg/linear.svg"){
+                ev.target.setAttribute('src', "modules/foundry-patrol/imgs/svg/line.svg")
+            }else{
+                ev.target.setAttribute('src', "modules/foundry-patrol/imgs/svg/linear.svg")
+            } 
+            token.routes._setLinear();
+        })
+
         plotDirection.click(ev => {
             let className = ev.target.getAttribute("class");
             if(className == "control-icon fas fa-arrows-alt-h"){
@@ -588,6 +624,8 @@ function tokenHUDPatrol(app, html, data){
             } 
             token.routes._setInverse();
         })
+
+        
 
         patrolWalkHUD.click(ev => {
             let className = ev.target.getAttribute("class");

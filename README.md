@@ -46,3 +46,10 @@ Auto-Installation Instructions:
 
 If you have any suggestions, please let me know on discord! (JacobMcAuley#3461)
 
+
+
+
+### Attributions
+
+Linear Walk found at: https://www.iconfinder.com/icons/214663/arrow_points_icon
+Normal Walk found at: https://www.iconfinder.com/icons/2639849/chart_line_icon
