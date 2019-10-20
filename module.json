@@ -9,7 +9,8 @@
         "./src/hooks.js",
         "./src/plotvisualization.js",
         "./config/config.js",
-        "./src/keylogger.js"
+        "./src/keylogger.js",
+        "./src/tokeninterface.js"
     ],
     "url": "https://github.com/JacobMcAuley/foundry-patrol",
     "manifest": "https://github.com/JacobMcAuley/foundry-patrol/raw/master/module.json",
