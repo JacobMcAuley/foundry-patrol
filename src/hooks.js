@@ -90,7 +90,7 @@ Hooks.on("controlToken", (object, controlled) => {
         object.routes.livePlotUpdate();
     }
     else{
-        object.routes.removePlot();
+        object.routes._removePlotDrawing();
         canvas.layers[GLOBAL_ROUTES_INDEX].deactivate();
         canvas.layers[GLOBAL_ROUTES_INDEX].draw();
     }

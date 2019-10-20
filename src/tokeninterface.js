@@ -1,3 +1,6 @@
+/**
+ * Adds all the HUD interfaces
+ */
 class tokenHud{
     constructor(){}
 

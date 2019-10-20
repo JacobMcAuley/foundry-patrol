@@ -1,3 +1,6 @@
+/**
+ * Basically taken from Foundry.js
+ */
 class RoutesLayer extends CanvasLayer
 {
     constructor()
@@ -14,6 +17,10 @@ class RoutesLayer extends CanvasLayer
         }
     }
 
+    /**
+     * Similar to below, error occurs in the event the GM swaps scenes while the token is displaying. Since this.sceneId is unavailable
+     * an error is thrown. Since this is the only known occurance of an error (by this module atleast), the error can be safely disregarded.
+     */
     async draw()
     {
         try{
@@ -26,9 +33,7 @@ class RoutesLayer extends CanvasLayer
               this.objects.addChild(obj.drawing);
             }
         }
-        catch(error){
-            console.log("Foundry-Patrol: Routes layer draw has thrown an error. Likely the scene was swapped. This can be disregarded");
-        }
+        catch(error){}
     }
 
     activate(){
@@ -45,7 +50,13 @@ class RoutesLayer extends CanvasLayer
     }
 }
 
+/**
+ * Custom drawing used to display the lines that make up the patrol route.
+ */
 class drawRoute extends PlaceableObject{
+    /**
+     * Data is passed through as json from the corresponding token.
+     */
     constructor(data)
     {
         super();
@@ -58,7 +69,14 @@ class drawRoute extends PlaceableObject{
         this.drawing = new PIXI.Graphics();
     }
 
-    _drawDashedLine(offset){ //Method inspired by user: ErikSom located here https://github.com/pixijs/pixi.js/issues/1333
+    /**
+     * Used to created the dashed lines between differing plot points.
+     * 
+     * Heavily inspired by ErikSom located here https://github.com/pixijs/pixi.js/issues/1333
+     * A man much smarter than I.
+     * @param {int} offset used for distance between lines.
+     */
+    _drawDashedLine(offset){ //Method inspired by user: 
         var dashSize = 0;
         var gapLength = 0;
         const GRID_SIZE = (canvas.grid.size == null)? 50 : canvas.grid.size/2;
@@ -115,6 +133,11 @@ class drawRoute extends PlaceableObject{
         }
     }
 
+    /**
+     * Responsible for the animation loop
+     * An error will be thrown when the token is deselected, but this is intended and has no effect on
+     * anything. The error is simply tossed.
+     */
     showRoute(){
         try{ 
             this.drawing.clear();
@@ -124,9 +147,6 @@ class drawRoute extends PlaceableObject{
             requestAnimationFrame(this.showRoute.bind(this));
             return this;
         }
-        catch(err){ 
-            // No handling required
-            // Error message will get thrown when drawing is removed, as the animation can no longer clear.
-        }
+        catch(err){}
     }
 }

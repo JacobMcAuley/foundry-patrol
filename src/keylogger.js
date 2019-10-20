@@ -1,6 +1,13 @@
+/**
+ * Logs the keys by the GM.
+ * This is used for workflow increase
+ */
+
 class RoutesKeyLogger{
     constructor(){
         this.maps = {};
+        
+        // List of the valid keys to be mapped.
         this.keys = {
             'shift' : 16,
             'c'     : 67,
@@ -13,6 +20,10 @@ class RoutesKeyLogger{
         }
     }
 
+    /**
+     * Gets key up and key down, then runs the requested function if the proper key is down.
+     * Key One, is used for if the goal is only a single token.
+     */
     getKeys = onkeyup = onkeydown = function(e){
         this.maps[e.keyCode] = e.type == 'keydown';
         if(this.maps[this.keys.shift] && this.maps[this.keys.q] && game.user.isGM)
@@ -30,12 +41,22 @@ class RoutesKeyLogger{
         }
     }.bind(this);
 
+
+    /**
+     * Provides interface into token for adding a plot.
+     */
     _addPlotSelectedToken(){
         for(let i = 0; i < canvas.tokens.controlledTokens.length; ++i)
         {
             canvas.tokens.controlledTokens[i].routes.addPlotPoint();
         }
     }
+
+    /**
+     *  The following _functions all run the same general loop, in order to reduce code redundancy.
+     *  Takes selectedToggle (which means only one token will be affected on true), and runs the general loop with the
+     *  requested token Patrols function interface.
+     */
 
     _haltAllRoutes(selectedToggle)
     {
@@ -60,7 +81,11 @@ class RoutesKeyLogger{
         ui.notifications.info("Colors changed for this scene");
     }
 
-
+    /**
+     * General loop for iterating over all controlled tokens running the desired method.
+     * @param {function} method 
+     * @param {boolean} selectedToggle 
+     */
     _generalLoop(method, selectedToggle){
         let tokens = (canvas.tokens.controlledTokens.length > 0 && selectedToggle) ? canvas.tokens.controlledTokens: canvas.tokens.ownedTokens;   
         for(let i = 0; i < tokens.length; ++i)
