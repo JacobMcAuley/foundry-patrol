@@ -7,29 +7,26 @@ class RoutesKeyLogger{
             'r'     : 82,
             'g'     : 71,
             'h'     : 72,
-            'q'     : 81
+            'q'     : 81,
+            't'     : 84,
+            'one'   : 49
         }
     }
 
     getKeys = onkeyup = onkeydown = function(e){
         this.maps[e.keyCode] = e.type == 'keydown';
-        if(this.maps[this.keys.shift])
+        if(this.maps[this.keys.shift] && this.maps[this.keys.q] && game.user.isGM)
         {
-            if(this.maps[this.keys.r]){
+            if(this.maps[this.keys.r])
                 this._addPlotSelectedToken();
-            }
             else if(this.maps[this.keys.h])
-            {
-                this._haltAllRoutes(this.maps[this.keys.q]);
-            }
+                this._haltAllRoutes(this.maps[this.keys.one]);
             else if(this.maps[this.keys.g])
-            {
-                this._startAllRoutes(this.maps[this.keys.q]);
-            }
+                this._startAllRoutes(this.maps[this.keys.one]);
             else if(this.maps[this.keys.c])
-            {
-                this._clearAllRoutes(this.maps[this.keys.q]);
-            }
+                this._clearAllRoutes(this.maps[this.keys.one]);
+            else if(this.maps[this.keys.t])
+                this._resetAllColors(canvas.tokens.controlledTokens.length > 1);
         }
     }.bind(this);
 
@@ -54,8 +51,15 @@ class RoutesKeyLogger{
 
     _clearAllRoutes(selectedToggle){
         this._generalLoop(Patrols.prototype._deleteRoutes, selectedToggle);
-        ui.notifications.info("Routes cleared for this scene");
+        ui.notification
+        s.info("Routes cleared for this scene");
     }
+
+    _resetAllColors(selectedToggle){
+        this._generalLoop(Patrols.prototype._resetColor, selectedToggle);
+        ui.notifications.info("Colors changed for this scene");
+    }
+
 
     _generalLoop(method, selectedToggle){
         let tokens = (canvas.tokens.controlledTokens.length > 0 && selectedToggle) ? canvas.tokens.controlledTokens: canvas.tokens.ownedTokens;   
