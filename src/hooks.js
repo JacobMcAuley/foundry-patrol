@@ -3,12 +3,13 @@
  */
 var GLOBAL_ROUTES_INDEX = null;
 var ROUTE_LOGGER = null
+var tokenHUDPatrol = null;
 
 /**
  * Register module setting enablePlayer. Settings can be found in ./config/config.js
  */
 Hooks.on('init', () => {
-    game.settings.register(PATROLCONFIG.module, PATROLCONFIG.key, PATROLCONFIG.settings)
+    //game.settings.register(PATROLCONFIG.module, PATROLCONFIG.key, PATROLCONFIG.settings) Disabled for now
 });
 
 
@@ -22,12 +23,13 @@ Hooks.on('ready', () => {
         return element.constructor.name == "RoutesLayer"
     });
     ROUTE_LOGGER = new RoutesKeyLogger();
+    tokenHUDPatrol = new tokenHud();
 });
 
 /**
  * Injects the custom TokenHud for patrolroutes.
  */
-Hooks.on('renderTokenHUD', (app, html, data) => tokenHUDPatrol(app,html,data));
+Hooks.on('renderTokenHUD', (app, html, data) => tokenHUDPatrol.HUD(app,html,data));
 
 
 /**
