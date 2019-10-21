@@ -12,7 +12,7 @@ Using this mod, you will be able to set up "Patrol Routes" which tokens will mov
 ### IMPORTANT / BUGS
 **Remember to back up your world before using mods**
 
-Bugs are inevitable, despite my best efforts to remove all that I could find. If you happen to locate any or if something doesn't appear to work as inteded, please don't hesitate to contact me on Discord at (JacobMcAuley#3461). I will correct the issue and push it out as soon as possible. 
+Bugs are inevitable, despite my best efforts to remove all that I could find. If you happen to locate any or if something doesn't appear to work as intended, please don't hesitate to contact me on Discord at (JacobMcAuley#3461). I will correct the issue and push it out as soon as possible. 
 
 That being said here are all the known issues at the moment:
 1. Group selecting tokens for deletion while patrolling is active *sometimes* results in an error message occuring. Hit F5 to refresh to fix.
