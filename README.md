@@ -26,7 +26,7 @@ That being said here are all the known issues at the moment:
 
 To install Foundry-patrol, do the following:
 
-1. [Download the zip file]()
+1. [Download the zip file](https://github.com/JacobMcAuley/foundry-patrol/archive/master.zip)
 2. Extract the folder to your 'public/modules' in Foundry VTT.
 3. Reload your application.
 
