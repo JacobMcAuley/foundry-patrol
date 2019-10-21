@@ -11,7 +11,7 @@ class tokenHud{
         let isInverted = token.routes.isInverted;
 
         const plotDiv = $(`
-            <div class="plotDiv" style="display: flex; flex-direction: row; justify-content: center; align-items:center; margin-right: 48px;">\
+            <div class="plotDiv" style="display: flex; flex-direction: row; justify-content: center; align-items:center; margin-right: 75px;">\
             </div>
         `);
 
@@ -30,7 +30,7 @@ class tokenHud{
         }
 
         const patrolDiv = $(`
-            <div class="patrolDiv" style="display: flex; flex-direction: row; justify-content: center; align-items:center; margin-right: 48px;">\
+            <div class="patrolDiv" style="display: flex; flex-direction: row; justify-content: center; align-items:center; margin-right: 75px;">\
             </div>
         `);
         

@@ -1,20 +1,26 @@
 # Foundry Token Patrol
 This module allows GMs (and optionally players) to set patrol points for their tokens, making the tokens move between the set points without input.
 
-
 ### Reasoning
 
 Using this mod, you will be able to set up "Patrol Routes" which tokens will move to based on a timing of your choice. This can give certain scenes a more life like appearance! Make your markets full of life and give your castles that patrolling retinue they've always needed!
 
 ### FVTT Version
-- Tested on FVTT v0.3.7
+- Tested on FVTT v0.3.8
+- No known module incompatibilities. 
 
 ### IMPORTANT / BUGS
 
-Bugs are inevitable, despite my best efforts to remove all that I could find. If you happen to locate any or if something doesn't appear to work as inteded, please don't hesitate to contact me on Discord at (JacobMcAuley#3461). I will correct the issue and push it out as soon as possible.
+Bugs are inevitable, despite my best efforts to remove all that I could find. If you happen to locate any or if something doesn't appear to work as inteded, please don't hesitate to contact me on Discord at (JacobMcAuley#3461). I will correct the issue and push it out as soon as possible. 
 
 That being said here are all the known issues at the moment:
 1. Group selecting tokens for deletion while patrolling is active *sometimes* results in an error message occuring. Hit F5 to refresh to fix.
+2. Games with two or more GM or assistant permissions will find unexpected behavior. 
+3. Creating nodes with a great distance and setting the delay between movements will result in the token never reaching any destination.
+
+### It's a feature not a bug!
+1. Tokens moving through linear mode on a diagonal may take an unexpect route to reach the point. This is how the function currently works. Future updates will adjust this.
+
 
 ### Installation Instructions
 
@@ -37,19 +43,35 @@ Auto-Installation Instructions:
 2. Right click a token to view the tokenHUD.
 3. Refer to the following image for descriptions of icons.
 
-![example_picture1](examples/example_picture1.jpg)
-![example_picture2](examples/example_picture2.jpg)
 
+### Keys
 
+Workflow short cuts:
+Starts with : SHIFT - Q
+1. R -> Adds a plot point (Think Route)
+2. C -> Clears routes (Think Clear)
+3. T -> Changes all assigned route colors
+4. G -> Starts routes (Think Go) 
+5. H -> Halts all routes (Think Halt)
+
+Additional Note: Using SHIFT - Q - 1(one) - KEY will result in only the highlighted tokens being affected opposed to globally.
+
+### Examples
+
+![example_picture1](examples/example1.png)
+![example_picture2](examples/example2.png)
+
+[![Watch the video](https://img.youtube.com/vi/zR6ut3gglZ4/maxresdefault.jpg)](https://www.youtube.com/watch?v=zR6ut3gglZ4)
 
 ### Feedback
 
 If you have any suggestions, please let me know on discord! (JacobMcAuley#3461)
 
 
-
-
 ### Attributions
 
 Linear Walk found at: https://www.iconfinder.com/icons/214663/arrow_points_icon
 Normal Walk found at: https://www.iconfinder.com/icons/2639849/chart_line_icon
+
+### Special Thanks
+Special thanks to: Felix, Jasaplay, Moerill, Gen Kitty, Guaccamole, errational, and any others I missed for providing much needed feedback.
