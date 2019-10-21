@@ -21,6 +21,9 @@ That being said here are all the known issues at the moment:
 ### It's a feature not a bug!
 1. Tokens moving through linear mode on a diagonal may take an unexpect route to reach the point. This is how the function currently works. Future updates will adjust this.
 
+### Planned features
+1. A loiter mode: Tokens will move about after stopping at a node
+2. Player use mode: Allow players to set patrols for their owned tokens.
 
 ### Installation Instructions
 
@@ -32,7 +35,7 @@ To install Foundry-patrol, do the following:
 
 Auto-Installation Instructions:
 
-1. Copy this link: 
+1. Copy this link: https://github.com/JacobMcAuley/foundry-patrol/raw/master/module.json
 2. Open FoundryVTT and navigate to Add-On Modules
 3. Select "Install Module" and paste link into textbox.
 4. Click "Install" and watch as the mod is installed!
