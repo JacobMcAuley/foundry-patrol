@@ -61,6 +61,7 @@ Additional Note: Using SHIFT - Q - 1(one) - KEY will result in only the highligh
 ![example_picture1](imgs/examples/example1.png)
 ![example_picture2](imgs/examples/example1.png)
 
+Watch the video:
 [![Watch the video](https://img.youtube.com/vi/zR6ut3gglZ4/maxresdefault.jpg)](https://www.youtube.com/watch?v=zR6ut3gglZ4)
 
 ### Feedback
