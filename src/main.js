@@ -1,5 +1,5 @@
 class Patrols{
-    constructor(token, debug = true){
+    constructor(token, debug = false){
         this.debug = debug;
         if(this.debug) console.log("Foundry-Patrol: Creating");
 
