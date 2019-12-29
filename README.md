@@ -6,7 +6,7 @@ This module allows GMs (and optionally players) to set patrol points for their t
 Using this mod, you will be able to set up "Patrol Routes" which tokens will move to based on a timing of your choice. This can give certain scenes a more life like appearance! Make your markets full of life and give your castles that patrolling retinue they've always needed!
 
 ### FVTT Version
-- Tested on FVTT v0.3.8
+- Tested on FVTT v0.4.3
 - No known module incompatibilities. 
 
 ### IMPORTANT / BUGS
@@ -83,5 +83,5 @@ Special thanks to: Felix, Jasaplay, Moerill, Gen Kitty, Guaccamole, errational, 
 
 # Donations
 If you liked this project and want to support future ones, consider donating! 
-This module and all previous and future modules, as always, will be free to use an download. Any donations are warmly received and appreciated!
+This module and all previous and future modules, as always, will be free to use and download. Any donations are warmly received and appreciated!
 [![paypal](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=723SW7WMD8YR6&item_name=Thank+you+for+your+tip%21&currency_code=USD&source=url)
