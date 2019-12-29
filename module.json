@@ -14,5 +14,6 @@
     ],
     "url": "https://github.com/JacobMcAuley/foundry-patrol",
     "manifest": "https://github.com/JacobMcAuley/foundry-patrol/raw/master/module.json",
-    "download": "https://github.com/JacobMcAuley/foundry-patrol/archive/master.zip"
+    "download": "https://github.com/JacobMcAuley/foundry-patrol/archive/master.zip",
+    "minimumCoreVersion" : "0.4.3"
 }

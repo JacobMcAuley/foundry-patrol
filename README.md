@@ -80,3 +80,8 @@ Normal Walk found at: https://www.iconfinder.com/icons/2639849/chart_line_icon
 
 ### Special Thanks
 Special thanks to: Felix, Jasaplay, Moerill, Gen Kitty, Guaccamole, errational, and any others I missed for providing much needed feedback.
+
+# Donations
+If you liked this project and want to support future ones, consider donating! 
+This module and all previous and future modules, as always, will be free to use an download. Any donations are warmly received and appreciated!
+[![paypal](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=723SW7WMD8YR6&item_name=Thank+you+for+your+tip%21&currency_code=USD&source=url)
