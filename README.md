@@ -79,6 +79,7 @@ Linear Walk found at: https://www.iconfinder.com/icons/214663/arrow_points_icon
 Normal Walk found at: https://www.iconfinder.com/icons/2639849/chart_line_icon
 
 ### Special Thanks
+Super special thanks to Bazoop on discord! He was a willing participant to bad code.
 Special thanks to: Felix, Jasaplay, Moerill, Gen Kitty, Guaccamole, errational, and any others I missed for providing much needed feedback.
 
 # Donations
