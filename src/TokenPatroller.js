@@ -175,7 +175,7 @@ class TokenPatrollerManager{
                 
                 if(patrolData.isWalking && !game.paused && !this._wasTokenMoved(token) && this._validatePatrol(token) && !patrolData.isDeleted){
                     await this._navigateToNextPoint(patrolPoints[iterator], token);
-                    console.log(`Waited ${patrolData.delayPeriod[iterator] + ((pointLen/10) * 1000)}`)
+                    //console.log(`Waited ${patrolData.delayPeriod[iterator] + ((pointLen/10) * 1000)}`)
                     this._storeLastPlotTaken(iterator, token);
                     if(false){ // Future update, maybe
                         await this.sayMessage(token);
