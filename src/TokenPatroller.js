@@ -155,18 +155,27 @@ class TokenPatrollerManager{
     }
 
     async _navigationLoop(patrolPoints, iterator, comparison, operation, onReturn, increment, token){
+        const GRID_SIZE = canvas.grid.size;
         let patrolData = this.tokenMap[token.id];
         if(!patrolData)
             return;
         const sleep = m => new Promise(r => setTimeout(r, m));
         if(patrolData.onInverseReturn == onReturn){
             for(iterator; operation(iterator, comparison); iterator = iterator + (increment)){
-                await sleep(patrolData.delayPeriod[Math.floor(Math.random() * patrolData.delayPeriod.length)]); // Randomly selects a value within the delay period.
+                let dX = (patrolPoints[iterator].x) - (token.x); 
+                let dY = (patrolPoints[iterator].y) - (token.y);
+                let pointLen = Math.sqrt(Math.pow(dX, 2) + Math.pow(dY, 2))/GRID_SIZE;
+                if(patrolData.delayPeriod.length == patrolPoints.length){
+                    await sleep(patrolData.delayPeriod[iterator] + ((pointLen/10) * 1000) + 150);
+                }
+                else
+                    await sleep(patrolData.delayPeriod[Math.floor(Math.random() * patrolData.delayPeriod.length)]); // Randomly selects a value within the delay period.
                 if(!this.tokenMap[token.id])
                     return
                 
                 if(patrolData.isWalking && !game.paused && !this._wasTokenMoved(token) && this._validatePatrol(token) && !patrolData.isDeleted){
                     await this._navigateToNextPoint(patrolPoints[iterator], token);
+                    console.log(`Waited ${patrolData.delayPeriod[iterator] + ((pointLen/10) * 1000)}`)
                     this._storeLastPlotTaken(iterator, token);
                     if(false){ // Future update, maybe
                         await this.sayMessage(token);
@@ -388,7 +397,11 @@ class TokenPatrollerManager{
         if(!this.tokenMap[tokenId])
             return;
         if(removeAll){
-            delete this.tokenMap[tokenId];
+            this.tokenMap[tokenId].plots = [];
+            this.tokenMap[tokenId].countinousRoutes = [];
+            this.tokenMap[tokenId].endCountinousRoutes = [];
+            this.tokenMap[tokenId].lastRecordedLocation = {};
+            this.tokenMap[tokenId].lastPos = 0;
         }
         else{
             let len = this.tokenMap[tokenId]['plots'].length;
@@ -761,6 +774,7 @@ class RoutesLayer extends CanvasLayer
     async draw()
     {
         try{
+            await super.removeChildren().forEach(c => c.destroy({children: true}));
             await super.draw();
             this.objects = this.addChild(new PIXI.Container());
         
