@@ -7,6 +7,7 @@ class TokenPatrollerInitalizer {
         TokenPatrollerInitalizer.hooksRenderTokenHUD();
         TokenPatrollerInitalizer.hooksControlToken();
         TokenPatrollerInitalizer.hooksDeleteToken();
+        //TokenPatrollerInitalizer.hooksPreUpdateScene();
     }
 
     static hooksOnCanvasInit() {
@@ -31,9 +32,15 @@ class TokenPatrollerInitalizer {
         });
     }
 
+    static hooksPreUpdateScene() {
+        Hooks.on("preUpdateScene", async (Scene, status, diff, id) => {
+            if (status.activate) await TP.tokenPatroller._resetWalk();
+        });
+    }
+
     static hooksRenderTokenHUD() {
         Hooks.on("renderTokenHUD", (tokenHUD, html, options) => {
-            if (!game.user.isGM) return;
+            if (!game.user.isGM || game.settings.get(TP.MODULENAME, "disableHUD")) return;
             TokenHud.HUD(tokenHUD.object, html, options);
         });
     }
@@ -56,8 +63,8 @@ class TokenPatrollerInitalizer {
     }
 
     static hooksDeleteToken() {
-        Hooks.on("deleteToken", (scene, sceneId, tokenId) => {
-            TP.tokenPatroller.deleteToken(tokenId, sceneId);
+        Hooks.on("deleteToken", (scene, tokenInfo) => {
+            TP.tokenPatroller.deleteToken(tokenInfo._id);
         });
     }
 
@@ -120,14 +127,14 @@ class PatrolDataManager {
         let folder = await Folder.collection.entities.filter((entry) => entry.data.name == "Foundry-Patrol");
         if (folder.length > 1 || folder.length < 0) {
             ui.notifications.error("Critical failure in finding patrol database. More than one folder named Foundry-Patrol exists");
-            return -1;
+            return false;
         }
         return folder[0];
     }
 
     _checkIfDataExists(dataFile) {
         const content = getProperty(dataFile, "data.content");
-        if (!content) return -1;
+        if (!content) return false;
         return content.length > 0;
     }
 
@@ -137,8 +144,12 @@ class PatrolDataManager {
     }
 
     async saveMap(data) {
+        let folderId = (await this._getFolder()).id;
         let dataFile = await this._getPatrolDataFile();
-        return await dataFile.update({ content: JSON.stringify(data) });
+        return await dataFile.update({
+            content: JSON.stringify(data),
+            folder: folderId,
+        });
     }
 }
 
@@ -154,7 +165,15 @@ class TokenPatrollerManager {
     static async create() {
         const o = new TokenPatrollerManager();
         await o.initializeHashTable();
+        await o._resetWalk();
         return o;
+    }
+
+    async _resetWalk() {
+        for (let [key, res] of Object.entries(this.tokenMap)) {
+            res["isWalking"] = false;
+        }
+        await this._saveAndUpdate(this.tokenMap);
     }
 
     async _saveAndUpdate(data) {
@@ -166,7 +185,8 @@ class TokenPatrollerManager {
         this.tokenMap = await TP.patrolDataManager.dataInit();
     }
 
-    addPlotPoint(tokenId, token) {
+    addPlotPoint(tokenId) {
+        let token = canvas.tokens.get(tokenId);
         let coord = {
             x: getProperty(token.data, "x"),
             y: getProperty(token.data, "y"),
@@ -174,17 +194,18 @@ class TokenPatrollerManager {
         if (!coord) return;
         this.updateTokenRoute(tokenId, coord);
         this.livePlotUpdate(tokenId);
-        //this.linearWalk(false, tokenId);
-        //this.linearWalk(true, tokenId);
+        this.linearWalk(false, tokenId);
+        this.linearWalk(true, tokenId);
     }
 
-    async startPatrol(delay, tokenId) {
+    async startPatrol(delay = null, tokenId) {
         delay = delay ? delay : this.delayPeriod;
         let token = canvas.tokens.get(tokenId);
         await this._handleDelayPeriod(delay, tokenId);
         let patrolData = this.tokenMap[tokenId];
         this._updatelastRecordedLocation(undefined, token);
-        patrolData.isWalking = !patrolData.isWalking;
+        if (patrolData.isWalking) return;
+        else patrolData.isWalking = true;
         let cycle = this.tokenMap[tokenId].inverted == false ? 1 : 0;
         try {
             while (patrolData.isWalking && this._validatePatrol(token)) {
@@ -194,8 +215,13 @@ class TokenPatrollerManager {
             }
             this._disableWalking(token);
         } catch (e) {
-            console.log(`Unexpected Error in patrol: Was a token deleted during movement?:\n${e}`);
+            console.log(`Unexpected Error in patrol: Was a token deleted during movement?:\n${e} at ${e.stack}`);
         }
+    }
+
+    async stopPatrol(tokenId) {
+        this.tokenMap[tokenId].isWalking = false;
+        await this._saveAndUpdate(this.tokenMap);
     }
 
     async _navigationCycle(cycle, token) {
@@ -251,8 +277,8 @@ class TokenPatrollerManager {
             for (iterator; operation(iterator, comparison); iterator = iterator + increment) {
                 if (game.settings.get("foundry-patrol", "tokenRotation")) {
                     //Rotation
-                    let dX = patrolPoints[iterator].x - token.x;
-                    let dY = patrolPoints[iterator].y - token.y;
+                    let dX = patrolPoints[iterator].x - patrolData.lastRecordedLocation.x;
+                    let dY = patrolPoints[iterator].y - patrolData.lastRecordedLocation.y;
                     this.rotateToken(dX, dY, token);
                 }
 
@@ -264,6 +290,7 @@ class TokenPatrollerManager {
                 if (patrolData.isWalking && !game.paused && !this._wasTokenMoved(token) && this._validatePatrol(token) && !patrolData.isDeleted) {
                     await this._navigateToNextPoint(patrolPoints[iterator], token);
                     await this._ensureAnimationCompletion(token);
+                    await VisionHandler.checkVision(token.id);
                     this._storeLastPlotTaken(iterator, token);
                     if (false) {
                         // Future update, maybe
@@ -335,7 +362,7 @@ class TokenPatrollerManager {
             // Occurs in the event the user fails to properly pass values. Simply returning will use the previously stored delayPeriod.
             return;
         }
-        TP.patrolDataManager.saveMap(this.tokenMap);
+        TP.tokenPatroller._saveAndUpdate(this.tokenMap);
     }
 
     /**
@@ -379,15 +406,19 @@ class TokenPatrollerManager {
     }
 
     rotateToken(dX, dY, token) {
-        if (dX < 0 && dY > 0) token.rotate(45);
-        else if (dX < 0 && dY == 0) token.rotate(90);
-        else if (dX < 0 && dY < 0) token.rotate(135);
-        else if (dX == 0 && dY < 0) token.rotate(180);
-        else if (dX > 0 && dY < 0) token.rotate(225);
-        else if (dX > 0 && dY == 0) token.rotate(270);
-        else if (dX > 0 && dY > 0) token.rotate(315);
-        else if (dX == 0 && dY > 0) token.rotate(0);
-        else if (dX != 0 && dY != 0) if (this.debug) console.log("Unexpected direction");
+        //token.rotate(DEGREES)
+        if (dX < 0 && dY > 0) token.update({ rotation: 45 });
+        else if (dX < 0 && dY == 0) token.update({ rotation: 90 });
+        else if (dX < 0 && dY < 0) token.update({ rotation: 135 });
+        else if (dX == 0 && dY < 0) token.update({ rotation: 180 });
+        else if (dX > 0 && dY < 0) token.update({ rotation: 225 });
+        else if (dX > 0 && dY == 0) token.update({ rotation: 270 });
+        else if (dX > 0 && dY > 0) token.update({ rotation: 315 });
+        else if (dX == 0 && dY > 0) token.update({ rotation: 0 });
+        else if (dX != 0 && dY != 0)
+            if (this.debug)
+                //token.rotate(0);
+                console.log("Unexpected direction");
     }
 
     linearWalk(generateEnd, tokenId) {
@@ -401,7 +432,7 @@ class TokenPatrollerManager {
             this._generateLinearRoute(this._getGeneral(tokenId, "endCountinousRoutes"), plot[len], plot[ROUTE_START], xMod, yMod);
         } else if (plot.length < 2) {
             this._getGeneral(tokenId, "countinousRoutes").push(plot[0]);
-            TP.patrolDataManager.saveMap(this.tokenMap);
+            TP.tokenPatroller._saveAndUpdate(this.tokenMap);
         } else {
             let xMod = plot[len].x >= plot[len - 1].x ? 1 : -1;
             let yMod = plot[len].y >= plot[len - 1].y ? 1 : -1;
@@ -412,7 +443,7 @@ class TokenPatrollerManager {
     _generateLinearRoute(route, src, dest, xMod, yMod) {
         const GRID_SIZE = canvas.grid.size;
         if (src.x == dest.x && src.y == dest.y) {
-            TP.patrolDataManager.saveMap(this.tokenMap);
+            TP.tokenPatroller._saveAndUpdate(this.tokenMap);
             return true;
         } else if (src.x != dest.x && src.y != dest.y) {
             src.x += GRID_SIZE * xMod;
@@ -457,7 +488,7 @@ class TokenPatrollerManager {
             };
             this.tokenMap[tokenId]["plots"].push(updateData);
         }
-        TP.patrolDataManager.saveMap(this.tokenMap);
+        TP.tokenPatroller._saveAndUpdate(this.tokenMap);
     }
 
     generateTokenSchema(tokenId) {
@@ -480,7 +511,7 @@ class TokenPatrollerManager {
             isDeleted: false,
             patrolMessages: [],
         };
-        TP.patrolDataManager.saveMap(this.tokenMap);
+        TP.tokenPatroller._saveAndUpdate(this.tokenMap);
     }
 
     removeTokenRoute(tokenId, removeAll = false) {
@@ -498,9 +529,9 @@ class TokenPatrollerManager {
             this.tokenMap[tokenId]["plots"].pop();
             this.tokenMap[tokenId].lastPos = 0;
             this.tokenMap[tokenId]["countinousRoutes"].length -= this._adjustLength(p1, p2);
-            //this.linearWalk(true);
+            this.linearWalk(true);
         }
-        TP.patrolDataManager.saveMap(this.tokenMap);
+        TP.tokenPatroller._saveAndUpdate(this.tokenMap);
         this.livePlotUpdate(tokenId);
     }
 
@@ -509,7 +540,7 @@ class TokenPatrollerManager {
     }
 
     removeAllTokenRoutes() {
-        TP.patrolDataManager.saveMap({});
+        TP.tokenPatroller._saveAndUpdate({});
         this.livePlotUpdate(null);
     }
 
@@ -550,10 +581,10 @@ class TokenPatrollerManager {
         deletePrompt.render(true);
     }
 
-    deleteToken(tokenId, sceneId) {
+    deleteToken(tokenId) {
         if (!this.tokenMap[tokenId]) return;
         delete this.tokenMap[tokenId];
-        TP.patrolDataManager.saveMap(this.tokenMap);
+        TP.tokenPatroller._saveAndUpdate(this.tokenMap);
     }
 
     livePlotUpdate(tokenId) {
@@ -618,7 +649,7 @@ class TokenPatrollerManager {
 
     _storeLastPlotTaken(plotNumber, token) {
         this.tokenMap[token.id].lastPos = plotNumber;
-        TP.patrolDataManager.saveMap(this.tokenMap);
+        TP.tokenPatroller._saveAndUpdate(this.tokenMap);
     }
 
     _updatelastRecordedLocation(futurePlot, token) {
@@ -630,7 +661,7 @@ class TokenPatrollerManager {
             lastRecordedLocation.x = getProperty(token.data, "x");
             lastRecordedLocation.y = getProperty(token.data, "y");
         }
-        TP.patrolDataManager.saveMap(this.tokenMap);
+        TP.tokenPatroller._saveAndUpdate(this.tokenMap);
     }
 
     _wasTokenMoved(token) {
@@ -652,24 +683,24 @@ class TokenPatrollerManager {
     _setLinear(tokenId) {
         this.tokenMap[tokenId].isLinear = !this.tokenMap[tokenId].isLinear;
         this.tokenMap[tokenId].lastPos = 0;
-        TP.patrolDataManager.saveMap(this.tokenMap);
+        TP.tokenPatroller._saveAndUpdate(this.tokenMap);
     }
 
     _setInverse(tokenId) {
         this.tokenMap[tokenId].inverted = !this.tokenMap[tokenId].inverted;
         this.tokenMap[tokenId].lastPos = 0;
-        TP.patrolDataManager.saveMap(this.tokenMap);
+        TP.tokenPatroller._saveAndUpdate(this.tokenMap);
         this.livePlotUpdate(tokenId);
     }
 
     _setInverseReturn(token) {
         this.tokenMap[token.id].onInverseReturn = !this.tokenMap[token.id].onInverseReturn;
-        TP.patrolDataManager.saveMap(this.tokenMap);
+        TP.tokenPatroller._saveAndUpdate(this.tokenMap);
     }
 
     _disableWalking(token) {
         this.tokenMap[token.id].isWalking = false;
-        TP.patrolDataManager.saveMap(this.tokenMap);
+        TP.tokenPatroller._saveAndUpdate(this.tokenMap);
     }
 
     async getDelayPeriod(tokenId) {
@@ -702,7 +733,7 @@ class TokenPatrollerManager {
         if (!this.tokenMap[tokenId]) TP.tokenPatroller.generateTokenSchema(tokenId);
 
         this.tokenMap[tokenId].patrolMessages.push(message);
-        TP.patrolDataManager.saveMap(this.tokenMap);
+        TP.tokenPatroller._saveAndUpdate(this.tokenMap);
     }
 }
 
@@ -783,7 +814,7 @@ class TokenHud {
             html.find(".patrolDiv").append(patrolDelayHUD);
 
             addPlotPoint.click((ev) => {
-                TP.tokenPatroller.addPlotPoint(tokenId, token);
+                TP.tokenPatroller.addPlotPoint(tokenId);
             });
 
             deletePlotPoint.click((ev) => {
@@ -814,11 +845,12 @@ class TokenHud {
                 let className = ev.target.getAttribute("class");
                 if (className == "fas fa-walking title control-icon") {
                     ev.target.className = "fas fa-times title control-icon";
+                    let delayPeriod = document.getElementById("patrolWait").value;
+                    if (patrolData) TP.tokenPatroller.startPatrol(delayPeriod, tokenId);
                 } else {
                     ev.target.className = "fas fa-walking title control-icon";
+                    TP.tokenPatroller.stopPatrol(tokenId);
                 }
-                let delayPeriod = document.getElementById("patrolWait").value;
-                if (patrolData) TP.tokenPatroller.startPatrol(delayPeriod, tokenId);
             });
         }
     }
@@ -970,7 +1002,7 @@ class drawRoute extends PlaceableObject {
 class RoutesKeyLogger {
     constructor() {
         this.maps = {};
-
+        this.checkKeys();
         // List of the valid keys to be mapped.
         this.keys = {
             shift: 16,
@@ -988,16 +1020,58 @@ class RoutesKeyLogger {
      * Gets key up and key down, then runs the requested function if the proper key is down.
      * Key One, is used for if the goal is only a single token.
      */
-    getKeys = (onkeyup = onkeydown = function (e) {
-        this.maps[e.keyCode] = e.type == "keydown";
-        if (this.maps[this.keys.shift] && this.maps[this.keys.q] && game.user.isGM) {
-            if (this.maps[this.keys.r]) this._addPlotSelectedToken();
-            else if (this.maps[this.keys.h]) this._haltAllRoutes(this.maps[this.keys.one]);
-            else if (this.maps[this.keys.g]) this._startAllRoutes(this.maps[this.keys.one]);
-            else if (this.maps[this.keys.c]) this._clearAllRoutes(this.maps[this.keys.one]);
-            else if (this.maps[this.keys.t]) this._resetAllColors(canvas.tokens.controlledTokens.length > 1);
-        }
-    }.bind(this));
+    checkKeys() {
+        let fired = false;
+
+        window.addEventListener("keydown", async (e) => {
+            if (fired) void 0;
+            else if (
+                window.Azzu.SettingsTypes.KeyBinding.eventIsForBinding(
+                    e,
+                    window.Azzu.SettingsTypes.KeyBinding.parse(game.settings.get("foundry-patrol", "startRoute"))
+                )
+            ) {
+                this._startAllRoutes(this.maps[this.keys.one]);
+                fired = true;
+            } else if (
+                window.Azzu.SettingsTypes.KeyBinding.eventIsForBinding(
+                    e,
+                    window.Azzu.SettingsTypes.KeyBinding.parse(game.settings.get("foundry-patrol", "stopRoute"))
+                )
+            ) {
+                this._haltAllRoutes(this.maps[this.keys.one]);
+                fired = true;
+            } else if (
+                window.Azzu.SettingsTypes.KeyBinding.eventIsForBinding(
+                    e,
+                    window.Azzu.SettingsTypes.KeyBinding.parse(game.settings.get("foundry-patrol", "addTokenPoint"))
+                )
+            ) {
+                this._addPlotSelectedToken();
+                fired = true;
+            } else if (
+                window.Azzu.SettingsTypes.KeyBinding.eventIsForBinding(
+                    e,
+                    window.Azzu.SettingsTypes.KeyBinding.parse(game.settings.get("foundry-patrol", "clearRoute"))
+                )
+            ) {
+                this._clearAllRoutes(this.maps[this.keys.one]);
+                fired = true;
+            } else if (
+                window.Azzu.SettingsTypes.KeyBinding.eventIsForBinding(
+                    e,
+                    window.Azzu.SettingsTypes.KeyBinding.parse(game.settings.get("foundry-patrol", "generateMacro"))
+                )
+            ) {
+                await this._generateMacro();
+                this.fired = true;
+            }
+        });
+
+        window.addEventListener("keyup", (e) => {
+            fired = false;
+        });
+    }
 
     /**
      * Provides interface into token for adding a plot.
@@ -1005,7 +1079,7 @@ class RoutesKeyLogger {
     _addPlotSelectedToken() {
         for (let i = 0; i < canvas.tokens.controlledTokens.length; ++i) {
             let token = canvas.tokens.controlledTokens[i];
-            TP.tokenPatroller.addPlotPoint(token.id, token);
+            TP.tokenPatroller.addPlotPoint(token.id);
         }
     }
 
@@ -1046,6 +1120,49 @@ class RoutesKeyLogger {
         this._generalLoop(Patrols.prototype._resetColor, selectedToggle);
         ui.notifications.info("Colors changed for this scene");
     }
+
+    async _generateMacro() {
+        let tokenIds = [];
+        let selectedTokens = canvas.tokens.controlledTokens; // While less efficient, prevents accidental misclicks resulting in an empty array.
+        for (let i = 0; i < selectedTokens.length; ++i) {
+            tokenIds.push('"' + selectedTokens[i].id + '"');
+        }
+        if (tokenIds.length == 0) return -1;
+        let command = `[${tokenIds.toString()}].forEach(token => {
+            TP.tokenPatroller.startPatrol("2", token); 
+            /*
+            Where the 2 is, is where you want to put the delay. 
+            Comma seperated for multiple.
+            EX: TP.tokenPatroller.startPatrol("2, 4, 12", token); 
+            If you want a macro to stop the patrols, 
+            swap startPatrol for stopPatrol and remove the delay.
+            EX: TP.tokenPatroller.startPatrol(token);
+            */
+        })`;
+        await Macro.create(
+            {
+                folder: null,
+                name: "Patrol Route Macro (Make a better name)",
+                type: "script",
+                command: command,
+            },
+            { renderSheet: true }
+        );
+    }
+}
+
+class VisionHandler {
+    constructor() {}
+
+    static async checkVision(tokenId) {
+        let temp = canvas.tokens.get("C0YabVskbxcAMHPh");
+        let token = canvas.tokens.get(tokenId);
+        const sightRadius = token.dimRadius >= token.brightRadius ? token.dimRadius : token.brightRadius;
+        const { los, fov } = SightLayer.computeSight(token.center, sightRadius);
+        if (fov.contains(temp.x, temp.y)) {
+            console.log("I'm here!");
+        }
+    }
 }
 
 /*
@@ -1062,3 +1179,5 @@ Hooks.on('chatMessage', (chatLog, message, user) => {
 */
 
 TokenPatrollerInitalizer.initialize();
+
+//canvas.sight.sources.vision.forEach(test=>console.log(test["fov"].contains(y.x, y.y))) Where y is the token

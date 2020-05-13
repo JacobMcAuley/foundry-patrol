@@ -3,18 +3,6 @@ const TP = this.TP || {};
 TP.MODULENAME = "foundry-patrol";
 TP["PATROLCONFIG"] = [
     {
-        key: "enablePlayerPatrol",
-        settings: {
-            name: "Player Access",
-            hint: "Enables patrol access for player owned tokens.",
-            scope: "world",
-            config: true,
-            default: true,
-            type: Boolean,
-            choices: undefined,
-        },
-    },
-    {
         key: "drawnRoutes",
         settings: {
             scope: "world",
@@ -34,12 +22,23 @@ TP["PATROLCONFIG"] = [
         },
     },
     {
+        key: "disableHUD",
+        settings: {
+            name: "Disable the tokenPatroller HUD",
+            hint: "Disables the HUD to allow for a clear menu. Optimal when used with keybindings",
+            type: Boolean,
+            default: false,
+            scope: "client",
+            config: true,
+        },
+    },
+    {
         key: "startRoute",
         settings: {
             name: "Start Routes Hotkey",
             hint: "Enter a keybinding for start routes.",
             type: window.Azzu.SettingsTypes.KeyBinding,
-            default: "Shift + Alt + R",
+            default: "Shift + G",
             scope: "client",
             config: true,
         },
@@ -50,7 +49,7 @@ TP["PATROLCONFIG"] = [
             name: "Start Routes Hotkey",
             hint: "Enter a keybinding to halt routes.",
             type: window.Azzu.SettingsTypes.KeyBinding,
-            default: "Shift + Alt + S",
+            default: "Shift + H",
             scope: "client",
             config: true,
         },
@@ -61,7 +60,7 @@ TP["PATROLCONFIG"] = [
             name: "Start Routes Hotkey",
             hint: "Enter a keybinding to add a plot.",
             type: window.Azzu.SettingsTypes.KeyBinding,
-            default: "Shift + Alt + R",
+            default: "Shift + R",
             scope: "client",
             config: true,
         },
@@ -72,9 +71,47 @@ TP["PATROLCONFIG"] = [
             name: "Start Routes Hotkey",
             hint: "Enter a keybinding to clear a route.",
             type: window.Azzu.SettingsTypes.KeyBinding,
-            default: "Shift + Alt + C",
+            default: "Shift + C",
+            scope: "client",
+            config: true,
+        },
+    },
+
+    {
+        key: "generateMacro",
+        settings: {
+            name: "Change Patrol Macro Generation HotKey",
+            hint: "Enter a keybinding to generate a patrol macro.",
+            type: window.Azzu.SettingsTypes.KeyBinding,
+            default: "Shift + M",
             scope: "client",
             config: true,
         },
     },
 ];
+
+/* Future Settings
+    {
+        key: "changeColor",
+        settings: {
+            name: "Change Route Color HotKey",
+            hint: "Enter a keybinding to change a route's color.",
+            type: window.Azzu.SettingsTypes.KeyBinding,
+            default: "Shift + Q",
+            scope: "client",
+            config: true,
+        },
+    },
+    {
+        key: "enablePlayerPatrol",
+        settings: {
+            name: "Player Access",
+            hint: "Enables patrol access for player owned tokens.",
+            scope: "world",
+            config: true,
+            default: true,
+            type: Boolean,
+            choices: undefined,
+        },
+    }
+*/
