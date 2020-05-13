@@ -29,6 +29,7 @@ class TokenPatrollerInitalizer {
             TP.patrolDataManager = new PatrolDataManager();
             TP.tokenPatroller = await TokenPatrollerManager.create();
             TP.routeLogger = new RoutesKeyLogger();
+            TP.visionHandler = new VisionHandler();
         });
     }
 
@@ -290,7 +291,7 @@ class TokenPatrollerManager {
                 if (patrolData.isWalking && !game.paused && !this._wasTokenMoved(token) && this._validatePatrol(token) && !patrolData.isDeleted) {
                     await this._navigateToNextPoint(patrolPoints[iterator], token);
                     await this._ensureAnimationCompletion(token);
-                    await VisionHandler.checkVision(token.id);
+                    await TP.visionHandler.evaluateSight(token.id);
                     this._storeLastPlotTaken(iterator, token);
                     if (false) {
                         // Future update, maybe
@@ -712,16 +713,6 @@ class TokenPatrollerManager {
         return userDisplayDelay;
     }
 
-    async sayMessage(token) {
-        const sleep = (m) => new Promise((r) => setTimeout(r, m));
-        if (false) return;
-        await sleep(500);
-        let randomMessage = this.tokenMap[token.id].patrolMessages[Math.floor(Math.random() * this.tokenMap[token.id].patrolMessages.length)];
-        let delay = this._getDuration(randomMessage) + 500;
-        await canvas.hud.bubbles.say(token, randomMessage);
-        await sleep(delay);
-    }
-
     //Line 17884 Foundry.js
     _getDuration(message) {
         let words = message.split(" ").map((w) => w.trim()).length;
@@ -734,6 +725,10 @@ class TokenPatrollerManager {
 
         this.tokenMap[tokenId].patrolMessages.push(message);
         TP.tokenPatroller._saveAndUpdate(this.tokenMap);
+    }
+
+    getPatrolMessages(tokenId) {
+        return this.tokenMap[tokenId].patrolMessages;
     }
 }
 
@@ -1154,29 +1149,57 @@ class RoutesKeyLogger {
 class VisionHandler {
     constructor() {}
 
-    static async checkVision(tokenId) {
-        let temp = canvas.tokens.get("C0YabVskbxcAMHPh");
+    async evaluateSight(tokenId) {
         let token = canvas.tokens.get(tokenId);
+        let playerTokens = await this._determineTokens();
         const sightRadius = token.dimRadius >= token.brightRadius ? token.dimRadius : token.brightRadius;
-        const { los, fov } = SightLayer.computeSight(token.center, sightRadius);
-        if (fov.contains(temp.x, temp.y)) {
-            console.log("I'm here!");
-        }
+        const speaker = ChatMessage.getSpeaker({ token: token });
+        const messages = await TP.tokenPatroller.getPatrolMessages(tokenId)[0];
+        playerTokens.forEach(async (player) => {
+            let playerToken = canvas.tokens.get(player);
+            if (await this._checkVision(sightRadius, token.center, playerToken.x, playerToken.y)) {
+                await ChatMessage.create(
+                    {
+                        speaker: speaker,
+                        user: game.userId,
+                        content: messages,
+                        type: CHAT_MESSAGE_TYPES.EMOTE,
+                    },
+                    { chatBubble: true }
+                );
+            }
+        });
     }
+
+    async _checkVision(sight, center, x, y) {
+        const { los, fov } = SightLayer.computeSight(center, sight);
+        return fov.contains(x, y);
+    }
+
+    async _determineTokens() {
+        return await canvas.tokens.placeables.filter((t) => t.actor && this._ownerIsPC(t.actor)).map((result) => result.id);
+    }
+
+    _ownerIsPC(actor) {
+        for (const user of game.users) {
+            if (!user.isGM && actor.hasPerm(user, "OWNER")) {
+                return true;
+            }
+        }
+        return false;
+    }
+    //
 }
 
-/*
-Hooks.on('chatMessage', (chatLog, message, user) => {
-    if(!user.speaker.token)
-        return true;
+Hooks.on("chatMessage", (chatLog, message, user) => {
+    if (!user.speaker.token) return true;
     let messageModified = message.split(" ");
-    if(messageModified[0] == "/pt"){
+    if (messageModified[0] == "/pt") {
         TP.tokenPatroller.addPatrolMessage(getProperty(user, "speaker.token"), message.replace("/pt ", ""));
         return false;
     }
     return true;
-})
-*/
+});
 
 TokenPatrollerInitalizer.initialize();
 
