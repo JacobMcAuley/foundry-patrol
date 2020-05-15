@@ -42,7 +42,7 @@ class TokenPatrollerInitalizer {
 
     static hooksRenderTokenHUD() {
         Hooks.on("renderTokenHUD", (tokenHUD, html, options) => {
-            if (!game.user.isGM || game.settings.get(TP.MODULENAME, "disableHUD")) return;
+            if (!game.user.isGM) return;
             TokenHud.HUD(tokenHUD.object, html, options);
         });
     }
@@ -365,6 +365,7 @@ class TokenPatrollerManager {
             return;
         }
         TP.tokenPatroller._saveAndUpdate(this.tokenMap);
+        return this.tokenMap[tokenId].delayPeriod;
     }
 
     /**
@@ -487,9 +488,10 @@ class TokenPatrollerManager {
                 delayPeriod: [2000],
                 isDeleted: false,
                 patrolMessages: [],
+                audioId: null,
                 audioPath: null,
-                audioRadius: null,
                 audioVolume: null,
+                audioRadius: null,
                 visionChecking: false,
                 stopWhenSeen: false,
                 createCombat: false,
@@ -506,7 +508,6 @@ class TokenPatrollerManager {
 
     generateTokenSchema(tokenId) {
         let generatedColor = this._generateColor();
-        this.tokenMap[tokenId] = {};
         this.tokenMap[tokenId] = {
             color: generatedColor,
             plots: [],
@@ -525,6 +526,7 @@ class TokenPatrollerManager {
             patrolMessages: [],
         };
         TP.tokenPatroller._saveAndUpdate(this.tokenMap);
+        return this.tokenMap[tokenId];
     }
 
     removeTokenRoute(tokenId, removeAll = false) {
@@ -743,11 +745,20 @@ class TokenPatrollerManager {
         return this.tokenMap[tokenId].patrolMessages;
     }
 
+    getTokenData(tokenId) {
+        if (this.tokenMap[tokenId]) return this.tokenMap[tokenId];
+        return this.generateTokenSchema(tokenId);
+    }
+
     updateFormRelatedData(formData, tokenId) {
         for (const key in formData) {
             this.tokenMap[tokenId][key] = formData[key];
         }
         this._saveAndUpdate(this.tokenMap);
+    }
+
+    _hasAudio(tokenId) {
+        return this.tokenMap[tokenId].audioId != null;
     }
 }
 
@@ -820,14 +831,17 @@ class TokenHud {
         );
 
         if (game.user.isGM || game.settings.get("foundry-patrol", "enablePlayerPatrol")) {
-            html.find(".left").append(plotDiv);
-            html.find(".plotDiv").append(addPlotPoint);
-            html.find(".plotDiv").append(deletePlotPoint);
-            html.find(".plotDiv").append(plotDirection);
-            html.find(".left").append(patrolDiv);
-            html.find(".patrolDiv").append(linearWalkHUD);
-            html.find(".patrolDiv").append(patrolWalkHUD);
-            html.find(".patrolDiv").append(patrolDelayHUD);
+            if (!game.settings.get(TP.MODULENAME, "disableHUD")) {
+                html.find(".left").append(plotDiv);
+                html.find(".plotDiv").append(addPlotPoint);
+                html.find(".plotDiv").append(deletePlotPoint);
+                html.find(".plotDiv").append(plotDirection);
+                html.find(".left").append(patrolDiv);
+                html.find(".patrolDiv").append(linearWalkHUD);
+                html.find(".patrolDiv").append(patrolWalkHUD);
+                html.find(".patrolDiv").append(patrolDelayHUD);
+            }
+
             html.find(".right").append(patrolMenu);
 
             addPlotPoint.click((ev) => {
@@ -881,6 +895,7 @@ class PatrolMenu extends FormApplication {
     constructor(tokenId, ...args) {
         super(...args);
         this.tokenId = tokenId;
+        this.processedData = {};
     }
 
     static get defaultOptions() {
@@ -895,15 +910,92 @@ class PatrolMenu extends FormApplication {
     }
 
     async getData() {
-        const templateData = {};
-
+        let tokenData = TP.tokenPatroller.getTokenData(this.tokenId);
+        const templateData = {
+            audioPath: tokenData.audioPath,
+            audioRadius: tokenData.audioRadius,
+            audioVolume: tokenData.audioVolume,
+            catchQuotes: this._quoteHelper(tokenData.catchQuotes), // Special
+            createCombat: tokenData.createCombat,
+            pauseGame: tokenData.pauseGame,
+            delayPeriod: this._delayHelper(tokenData.delayPeriod), // Special
+            inverted: tokenData.inverted,
+            isLinear: tokenData.isLinear,
+            otherTokenVision: tokenData.otherTokenVision,
+            otherTokenVisionQuotes: this._quoteHelper(tokenData.otherTokenVisionQuotes), // Special
+            patrolQuotes: this._quoteHelper(tokenData.patrolQuotes), // Special
+            stopWhenSeen: tokenData.stopWhenSeen,
+            visionChecking: tokenData.visionChecking,
+        };
         return templateData;
     }
 
-    _updateObject(event, formData) {
+    _delayHelper(delayPeriod) {
+        if (delayPeriod.length <= 0) return null;
+        let string = '"';
+        delayPeriod.forEach((delay) => {
+            string = string + delay / 1000 + ",";
+        });
+        return string.slice(0, -1) + '"';
+    }
+
+    _quoteHelper(quotes) {
+        if (!quotes || quotes.length <= 0) return null;
+        let string = "";
+        quotes.forEach((quote) => {
+            string = string + "'" + quote + "'" + " ";
+        });
+        return string;
+    }
+
+    async _updateObject(event, formData) {
         //Handle Form Data
+        console.log(formData);
+        TP.tokenPatroller.generateTokenSchema(this.tokenId);
+        this._handleDelete(formData);
+        await this._processDelay(formData);
+        this._handleQuoteData(formData);
+        await this._handleAudioData(formData);
         TP.tokenPatroller.updateFormRelatedData(formData, this.tokenId);
         return;
+    }
+
+    async _processDelay(formData) {
+        let delay = formData.delayPeriod.match(/"([^"]*)"/g).map((entry) => entry.slice(1, -1));
+        if (!delay) {
+            console.log("Error");
+            return [2000];
+        }
+        formData.delayPeriod = await TP.tokenPatroller._handleDelayPeriod(delay[0], this.tokenId);
+    }
+
+    _handleDelete(formData) {
+        if (formData.delete) TP.tokenPatroller.removeTokenRoute(this.tokenId, true);
+        delete formData.delete;
+    }
+
+    _handleQuoteData(formData) {
+        let patrolQuotes = formData.patrolQuotes.length <= 0 ? null : formData.patrolQuotes.match(/'([^']*)'/g).map((entry) => entry.slice(1, -1));
+        let catchQuotes = formData.catchQuotes.length <= 0 ? null : formData.catchQuotes.match(/'([^']*)'/g).map((entry) => entry.slice(1, -1));
+        let otherTokenVisionQuotes =
+            formData.otherTokenVisionQuotes.length <= 0
+                ? null
+                : formData.otherTokenVisionQuotes.match(/'([^']*)'/g).map((entry) => entry.slice(1, -1));
+        formData.patrolQuotes = patrolQuotes;
+        formData.catchQuotes = catchQuotes;
+        formData.otherTokenVisionQuotes = otherTokenVisionQuotes;
+    }
+
+    async _handleAudioData(formData) {
+        if (TP.audioHandler.hasAudio(this.tokenId) || formData.audioPath.length == 0 || !formData.audioRadius || !formData.audioVolume) return;
+
+        formData["audioId"] = (
+            await TP.audioHandler.createPatrolAudio(this.tokenId, formData.audioPath, formData.audioRadius, formData.audioVolume)
+        ).id;
+
+        formData.audioPath;
+        formData.audioRadius;
+        formData.audioVolume;
     }
 
     activateListeners(html) {
@@ -920,7 +1012,6 @@ class PatrolMenu extends FormApplication {
         let currentTab = settingsButton;
         let currentBody = settings;
         super.activateListeners(html);
-        html.find('input[name="path"]').change(this._onSourceChange.bind(this));
         $(".nav-tab").click(function () {
             currentBody.toggleClass("hide");
             currentTab.toggleClass("selected");
@@ -956,7 +1047,6 @@ class PatrolMenu extends FormApplication {
         if (!form.name.value) form.name.value = field.value.split("/").pop().split(".").shift();
     }
 }
-
 /**
  * Basically taken from Foundry.js
  */
@@ -1301,18 +1391,19 @@ class VisionHandler {
 class AudioHandler {
     constructor() {}
 
-    async createPatrolAudio(x, y, file) {
+    async createPatrolAudio(tokenId, file, radius, volume) {
         const halfGrid = canvas.grid.size / 2;
+        const token = canvas.tokens.get(tokenId);
         try {
             return await AmbientSound.create({
                 t: "l",
-                x: x + halfGrid,
-                y: y + halfGrid,
-                radius: 60,
+                x: token.x + halfGrid,
+                y: token.y + halfGrid,
+                radius: radius,
                 easing: true,
                 path: file,
                 repeat: true,
-                volume: 0.4,
+                volume: AudioHelper.inputToVolume(volume),
             });
         } catch {
             console.log("Error in creating audio");
@@ -1325,6 +1416,10 @@ class AudioHandler {
         if (!sound) return;
         await sound[0].update({ x: x + halfGrid, y: y + halfGrid });
     }
+
+    hasAudio(tokenId) {
+        return TP.tokenPatroller._hasAudio(tokenId);
+    }
 }
 
 Hooks.on("chatMessage", (chatLog, message, user) => {
@@ -1335,6 +1430,10 @@ Hooks.on("chatMessage", (chatLog, message, user) => {
         return false;
     }
     return true;
+});
+
+Handlebars.registerHelper("determineChecked", function (currentValue) {
+    return currentValue ? 'checked="checked"' : "";
 });
 
 TokenPatrollerInitalizer.initialize();

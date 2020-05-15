@@ -15,17 +15,17 @@
                 </li>
                 <li>
                     <label>Linear mode: </label>
-                    <input type="checkbox" name="linearMode" data-dtype="Boolean" />
+                    <input type="checkbox" name="isLinear" data-dtype="Boolean" {{{determineChecked isLinear}}} />
                     <p class="notes">Checking this will make a token move to every grid between it and it's target</p>
                 </li>
                 <li>
                     <label>Cycle mode: </label>
-                    <input type="checkbox" name="cycleMode" data-dtype="Boolean" />
+                    <input type="checkbox" name="inverted" data-dtype="Boolean" {{{determineChecked inverted}}} />
                     <p class="notes">This will make the token go back and forth, rather than a circle.</p>
                 </li>
                 <li>
                     <label>Set Token delays</label>
-                    <textarea name="tokenDelays" data-dtype="String" placeholder='Ex1: "2,3,4,5" Ex2: "2-4" (1,2,3,4)'></textarea>
+                    <textarea name="delayPeriod" data-dtype="String" placeholder='Ex1: "2,3,4,5" Ex2: "2-4" (1,2,3,4)'>{{delayPeriod}}</textarea>
                     <p class="notes">This will set the delays the token will wait between points.</p>
                 </li>
             </ul>
@@ -37,8 +37,10 @@
                     <textarea
                         name="patrolQuotes"
                         data-dtype="String"
-                        placeholder='"Place your quotes between quotation marks!" "Just like this!"'
-                    ></textarea>
+                        placeholder="'Place your quotes between single quotation marks!' 'Just like this!'"
+                    >
+{{patrolQuotes}}</textarea
+                    >
                     <p class="notes">This will be quotes randomly spoken during patrols</p>
                 </li>
                 <li>
@@ -46,13 +48,15 @@
                     <textarea
                         name="catchQuotes"
                         data-dtype="String"
-                        placeholder='"Place your quotes between quotation marks!" "Just like this!"'
-                    ></textarea>
+                        placeholder="'Place your quotes between single quotation marks!' 'Just like this!'"
+                    >
+{{catchQuotes}}</textarea
+                    >
                     <p class="notes">This will be quotes spoken when a target is seen</p>
                 </li>
                 <li>
                     <label>Other Token Vision Mode: </label>
-                    <input type="checkbox" name="otherTokenVision" data-dtype="Boolean" />
+                    <input type="checkbox" name="otherTokenVision" data-dtype="Boolean" {{{determineChecked otherTokenVision}}} />
                     <p class="notes">
                         Instead of saying something when a player is seen, say something when a token that ISN'T controlled by a player is seen.
                     </p>
@@ -62,21 +66,35 @@
                     <textarea
                         name="otherTokenVisionQuotes"
                         data-dtype="String"
-                        placeholder='"This is for the above option!" "You can use {token.name} literally to substitute a name" "Howdy, {token.name}, how goes the patrol"'
-                    ></textarea>
+                        placeholder="'This is for the above option!' 'You can use {token.name} literally to substitute a name' 'Howdy, {token.name}, how goes the patrol'"
+                    >
+{{otherTokenVisionQuotes}}</textarea
+                    >
                     <p class="notes">This will be quotes spoken when a target that is not the player is seen</p>
                 </li>
             </ul>
         </div>
         <div id="vision" class="hide">
             <ul>
-                <li><label>Enable vision: </label><input type="checkbox" name="visionChecking" data-dtype="Boolean" /></li>
+                <li>
+                    <label>Enable vision: </label
+                    ><input type="checkbox" name="visionChecking" {{{determineChecked visionChecking}}} data-dtype="Boolean" />
+                </li>
                 <p class="notes">Enables vision so that the token can use sight based features.</p>
-                <li><label>Stop patrol when seen: </label><input type="checkbox" name="stopWhenSeen" data-dtype="Boolean" /></li>
+                <li>
+                    <label>Stop patrol when seen: </label
+                    ><input type="checkbox" name="stopWhenSeen" {{{determineChecked stopWhenSeen}}} data-dtype="Boolean" />
+                </li>
                 <p class="notes">If the token sees a player, it will stop.</p>
-                <li><label>Create combat when seen: </label><input type="checkbox" name="createCombat" data-dtype="Boolean" /></li>
+                <li>
+                    <label>Create combat when seen: </label
+                    ><input type="checkbox" name="createCombat" {{{determineChecked createCombat}}} data-dtype="Boolean" />
+                </li>
                 <p class="notes">If the token sees a player, it will start a combat.</p>
-                <li><label>Pause Game when seen: </label><input type="checkbox" name="pauseGame" data-dtype="Boolean" /></li>
+                <li>
+                    <label>Pause Game when seen: </label
+                    ><input type="checkbox" name="pauseGame" {{{determineChecked pauseGame}}} data-dtype="Boolean" />
+                </li>
                 <p class="notes">If the token sees a player, it will pause the game.</p>
             </ul>
         </div>
@@ -86,17 +104,17 @@
                     <div class="form-group">
                         <label>Audio Source</label>
                         <div class="form-fields">
-                            <button type="button" class="file-picker" data-type="audio" data-target="path" title="Browse Files" tabindex="-1">
+                            <button type="button" class="file-picker" data-type="audio" data-target="audioPath" title="Browse Files" tabindex="-1">
                                 <i class="fas fa-file-import fa-fw"></i>
                             </button>
-                            <input class="image" type="text" name="audioPath" placeholder="path/audio.mp3" value="" />
+                            <input class="imag" type="text" name="audioPath" placeholder="path/audio.mp3" value="{{audioPath}}" />
                         </div>
                     </div>
                 </li>
                 <li class="form-group">
                     <label>Radius</label>
                     <div class="form-fields">
-                        <input name="audioRadius" class="image" type="number" data-dtype="Number" />
+                        <input name="audioRadius" class="image" type="number" data-dtype="Number" value="{{audioRadius}}" />
                     </div>
 
                     <p class="notes">This is the radius of the ambient sound following the token.</p>
@@ -104,7 +122,17 @@
                 <li class="form-group">
                     <label>Volume</label>
                     <div class="form-fields">
-                        <input name="audioVolume" class="image" type="number" data-dtype="Number" />
+                        <input
+                            name="audioVolume"
+                            class="image"
+                            type="number"
+                            data-dtype="Number"
+                            placeholder="0.5"
+                            step="0.1"
+                            min="0"
+                            max="1.0"
+                            value="{{audioVolume}}"
+                        />
                     </div>
 
                     <p class="notes">This is the volume of the ambient sound from a scale of 0.1-1.0</p>
