@@ -1,0 +1,118 @@
+<form autocomplete="off" id="form-patrol">
+    <div class="patrol-tabs">
+        <button class="nav-tab settings-button selected" type="button">Settings</button>
+        <button class="nav-tab quotes-button" type="button">Quotes</button>
+        <button class="nav-tab vision-button" type="button">Vision</button>
+        <button class="nav-tab audio-button" type="button">Audio</button>
+    </div>
+    <div id="patrol-body">
+        <div id="patrol-settings" class="show">
+            <ul>
+                <li>
+                    <label>Delete Token: </label>
+                    <input type="checkbox" name="delete" data-dtype="Boolean" />
+                    <p class="notes">Checking this will delete all existing routes</p>
+                </li>
+                <li>
+                    <label>Linear mode: </label>
+                    <input type="checkbox" name="linearMode" data-dtype="Boolean" />
+                    <p class="notes">Checking this will make a token move to every grid between it and it's target</p>
+                </li>
+                <li>
+                    <label>Cycle mode: </label>
+                    <input type="checkbox" name="cycleMode" data-dtype="Boolean" />
+                    <p class="notes">This will make the token go back and forth, rather than a circle.</p>
+                </li>
+                <li>
+                    <label>Set Token delays</label>
+                    <textarea name="tokenDelays" data-dtype="String" placeholder='Ex1: "2,3,4,5" Ex2: "2-4" (1,2,3,4)'></textarea>
+                    <p class="notes">This will set the delays the token will wait between points.</p>
+                </li>
+            </ul>
+        </div>
+        <div id="quotes" class="hide">
+            <ul>
+                <li>
+                    <label>Patrol Quotes</label>
+                    <textarea
+                        name="patrolQuotes"
+                        data-dtype="String"
+                        placeholder='"Place your quotes between quotation marks!" "Just like this!"'
+                    ></textarea>
+                    <p class="notes">This will be quotes randomly spoken during patrols</p>
+                </li>
+                <li>
+                    <label>In Vision Quotes</label>
+                    <textarea
+                        name="catchQuotes"
+                        data-dtype="String"
+                        placeholder='"Place your quotes between quotation marks!" "Just like this!"'
+                    ></textarea>
+                    <p class="notes">This will be quotes spoken when a target is seen</p>
+                </li>
+                <li>
+                    <label>Other Token Vision Mode: </label>
+                    <input type="checkbox" name="otherTokenVision" data-dtype="Boolean" />
+                    <p class="notes">
+                        Instead of saying something when a player is seen, say something when a token that ISN'T controlled by a player is seen.
+                    </p>
+                </li>
+                <li>
+                    <label>Other Token Vision Quotes</label>
+                    <textarea
+                        name="otherTokenVisionQuotes"
+                        data-dtype="String"
+                        placeholder='"This is for the above option!" "You can use {token.name} literally to substitute a name" "Howdy, {token.name}, how goes the patrol"'
+                    ></textarea>
+                    <p class="notes">This will be quotes spoken when a target that is not the player is seen</p>
+                </li>
+            </ul>
+        </div>
+        <div id="vision" class="hide">
+            <ul>
+                <li><label>Enable vision: </label><input type="checkbox" name="visionChecking" data-dtype="Boolean" /></li>
+                <p class="notes">Enables vision so that the token can use sight based features.</p>
+                <li><label>Stop patrol when seen: </label><input type="checkbox" name="stopWhenSeen" data-dtype="Boolean" /></li>
+                <p class="notes">If the token sees a player, it will stop.</p>
+                <li><label>Create combat when seen: </label><input type="checkbox" name="createCombat" data-dtype="Boolean" /></li>
+                <p class="notes">If the token sees a player, it will start a combat.</p>
+                <li><label>Pause Game when seen: </label><input type="checkbox" name="pauseGame" data-dtype="Boolean" /></li>
+                <p class="notes">If the token sees a player, it will pause the game.</p>
+            </ul>
+        </div>
+        <div id="audio" class="hide">
+            <ul>
+                <li>
+                    <div class="form-group">
+                        <label>Audio Source</label>
+                        <div class="form-fields">
+                            <button type="button" class="file-picker" data-type="audio" data-target="path" title="Browse Files" tabindex="-1">
+                                <i class="fas fa-file-import fa-fw"></i>
+                            </button>
+                            <input class="image" type="text" name="audioPath" placeholder="path/audio.mp3" value="" />
+                        </div>
+                    </div>
+                </li>
+                <li class="form-group">
+                    <label>Radius</label>
+                    <div class="form-fields">
+                        <input name="audioRadius" class="image" type="number" data-dtype="Number" />
+                    </div>
+
+                    <p class="notes">This is the radius of the ambient sound following the token.</p>
+                </li>
+                <li class="form-group">
+                    <label>Volume</label>
+                    <div class="form-fields">
+                        <input name="audioVolume" class="image" type="number" data-dtype="Number" />
+                    </div>
+
+                    <p class="notes">This is the volume of the ambient sound from a scale of 0.1-1.0</p>
+                </li>
+            </ul>
+        </div>
+    </div>
+    <footer class="submit-patrol">
+        <button class="submit-button" type="submit" value="1">Submit</button>
+    </footer>
+</form>
