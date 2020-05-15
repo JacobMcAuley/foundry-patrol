@@ -30,6 +30,7 @@ class TokenPatrollerInitalizer {
             TP.tokenPatroller = await TokenPatrollerManager.create();
             TP.routeLogger = new RoutesKeyLogger();
             TP.visionHandler = new VisionHandler();
+            TP.audioHandler = new AudioHandler();
         });
     }
 
@@ -486,6 +487,17 @@ class TokenPatrollerManager {
                 delayPeriod: [2000],
                 isDeleted: false,
                 patrolMessages: [],
+                audioPath: null,
+                audioRadius: null,
+                audioVolume: null,
+                visionChecking: false,
+                stopWhenSeen: false,
+                createCombat: false,
+                pauseGame: false,
+                patrolQuotes: [],
+                catchQuotes: [],
+                otherTokenVision: false,
+                otherTokenVisionQuotes: [],
             };
             this.tokenMap[tokenId]["plots"].push(updateData);
         }
@@ -730,6 +742,13 @@ class TokenPatrollerManager {
     getPatrolMessages(tokenId) {
         return this.tokenMap[tokenId].patrolMessages;
     }
+
+    updateFormRelatedData(formData, tokenId) {
+        for (const key in formData) {
+            this.tokenMap[tokenId][key] = formData[key];
+        }
+        this._saveAndUpdate(this.tokenMap);
+    }
 }
 
 class TokenHud {
@@ -762,6 +781,8 @@ class TokenHud {
         `);
 
         const deletePlotPoint = $(`<i class="control-icon fas fa-trash-alt" style="margin-left: 4px;" title="Delete Point"></i>`);
+
+        const patrolMenu = $(`<i class="control-icon fas fa-caret-down" style="margin-left: 4px;" title="Delete Point"></i>`);
 
         let plotDirection = $(`<i class="control-icon fas fa-recycle" style="margin-left: 4px;" title="Cycle Mode"></i>`);
 
@@ -807,6 +828,7 @@ class TokenHud {
             html.find(".patrolDiv").append(linearWalkHUD);
             html.find(".patrolDiv").append(patrolWalkHUD);
             html.find(".patrolDiv").append(patrolDelayHUD);
+            html.find(".right").append(patrolMenu);
 
             addPlotPoint.click((ev) => {
                 TP.tokenPatroller.addPlotPoint(tokenId);
@@ -847,13 +869,98 @@ class TokenHud {
                     TP.tokenPatroller.stopPatrol(tokenId);
                 }
             });
+
+            patrolMenu.click((ev) => {
+                new PatrolMenu(tokenId).render(true);
+            });
         }
+    }
+}
+
+class PatrolMenu extends FormApplication {
+    constructor(tokenId, ...args) {
+        super(...args);
+        this.tokenId = tokenId;
+    }
+
+    static get defaultOptions() {
+        const options = super.defaultOptions;
+        options.template = "modules/foundry-patrol/templates/patrol_menu.html";
+        options.width = 600;
+        options.height = "auto";
+        options.title = "Patrol Menu Options";
+        options.closeOnSubmit = true;
+        options.id = "patrol-container";
+        return options;
+    }
+
+    async getData() {
+        const templateData = {};
+
+        return templateData;
+    }
+
+    _updateObject(event, formData) {
+        //Handle Form Data
+        TP.tokenPatroller.updateFormRelatedData(formData, this.tokenId);
+        return;
+    }
+
+    activateListeners(html) {
+        const body = $("#patrol-container");
+        const settings = $("#patrol-settings");
+        const settingsButton = $(".settings-button");
+        const quotes = $("#quotes");
+        const quotesButton = $(".quotes-button");
+        const vision = $("#vision");
+        const visionButton = $(".vision-button");
+        const audio = $("#audio");
+        const audioButton = $(".audio-button");
+
+        let currentTab = settingsButton;
+        let currentBody = settings;
+        super.activateListeners(html);
+        html.find('input[name="path"]').change(this._onSourceChange.bind(this));
+        $(".nav-tab").click(function () {
+            currentBody.toggleClass("hide");
+            currentTab.toggleClass("selected");
+            if ($(this).hasClass("settings-button")) {
+                settings.toggleClass("hide");
+                currentBody = settings;
+                currentTab = settingsButton;
+            } else if ($(this).hasClass("quotes-button")) {
+                quotes.toggleClass("hide");
+                currentBody = quotes;
+                currentTab = quotesButton;
+            } else if ($(this).hasClass("vision-button")) {
+                vision.toggleClass("hide");
+                currentBody = vision;
+                currentTab = visionButton;
+            } else if ($(this).hasClass("audio-button")) {
+                audio.toggleClass("hide");
+                currentBody = audio;
+                currentTab = audioButton;
+            }
+            currentTab.toggleClass("selected");
+            body.height("auto");
+        });
+    }
+
+    /**
+     * Taken from Foundry.js line 18579
+     */
+    _onSourceChange(event) {
+        event.preventDefault();
+        const field = event.target;
+        const form = field.form;
+        if (!form.name.value) form.name.value = field.value.split("/").pop().split(".").shift();
     }
 }
 
 /**
  * Basically taken from Foundry.js
  */
+
 class RoutesLayer extends CanvasLayer {
     constructor() {
         super();
@@ -1189,6 +1296,35 @@ class VisionHandler {
         return false;
     }
     //
+}
+
+class AudioHandler {
+    constructor() {}
+
+    async createPatrolAudio(x, y, file) {
+        const halfGrid = canvas.grid.size / 2;
+        try {
+            return await AmbientSound.create({
+                t: "l",
+                x: x + halfGrid,
+                y: y + halfGrid,
+                radius: 60,
+                easing: true,
+                path: file,
+                repeat: true,
+                volume: 0.4,
+            });
+        } catch {
+            console.log("Error in creating audio");
+        }
+    }
+
+    async updateAmbientPosition(x, y, ambientSoundId) {
+        const halfGrid = canvas.grid.size / 2;
+        let sound = canvas.sounds.placeables.filter((entry) => entry.id == ambientSoundId);
+        if (!sound) return;
+        await sound[0].update({ x: x + halfGrid, y: y + halfGrid });
+    }
 }
 
 Hooks.on("chatMessage", (chatLog, message, user) => {
