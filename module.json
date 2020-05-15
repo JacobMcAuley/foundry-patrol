@@ -5,6 +5,7 @@
     "version": "1.2.1",
     "author": "Jacob McAuley",
     "scripts": ["./config/settings-extender.js", "./config/config.js", "./src/TokenPatroller.js"],
+    "styles": ["./css/foundry-menu.css"],
     "url": "https://github.com/JacobMcAuley/foundry-patrol",
     "manifest": "https://github.com/JacobMcAuley/foundry-patrol/raw/master/module.json",
     "download": "https://github.com/JacobMcAuley/foundry-patrol/archive/master.zip",
