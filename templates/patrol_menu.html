@@ -33,6 +33,11 @@
         <div id="quotes" class="hide">
             <ul>
                 <li>
+                    <label>Enable quotes: </label
+                    ><input type="checkbox" name="enableQuotes" {{{determineChecked enableQuotes}}} data-dtype="Boolean" />
+                    <p class="notes">Enables quotes. With this option disabled, no quotes will be displayed.</p>
+                </li>
+                <li>
                     <label>Patrol Quotes</label>
                     <textarea
                         name="patrolQuotes"
@@ -55,13 +60,6 @@
                     <p class="notes">This will be quotes spoken when a target is seen</p>
                 </li>
                 <li>
-                    <label>Other Token Vision Mode: </label>
-                    <input type="checkbox" name="otherTokenVision" data-dtype="Boolean" {{{determineChecked otherTokenVision}}} />
-                    <p class="notes">
-                        Instead of saying something when a player is seen, say something when a token that ISN'T controlled by a player is seen.
-                    </p>
-                </li>
-                <li>
                     <label>Other Token Vision Quotes</label>
                     <textarea
                         name="otherTokenVisionQuotes"
@@ -79,8 +77,16 @@
                 <li>
                     <label>Enable vision: </label
                     ><input type="checkbox" name="visionChecking" {{{determineChecked visionChecking}}} data-dtype="Boolean" />
+                    <p class="notes">Enables vision so that the token can use sight based features.</p>
                 </li>
-                <p class="notes">Enables vision so that the token can use sight based features.</p>
+                <li>
+                    <label>Other Token Vision Mode: </label>
+                    <input type="checkbox" name="otherTokenVision" data-dtype="Boolean" {{{determineChecked otherTokenVision}}} />
+                    <p class="notes">
+                        Instead of saying something when a player is seen, say something when a token that ISN'T controlled by a player is seen.
+                    </p>
+                </li>
+
                 <li>
                     <label>Stop patrol when seen: </label
                     ><input type="checkbox" name="stopWhenSeen" {{{determineChecked stopWhenSeen}}} data-dtype="Boolean" />

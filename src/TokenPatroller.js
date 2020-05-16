@@ -31,6 +31,7 @@ class TokenPatrollerInitalizer {
             TP.routeLogger = new RoutesKeyLogger();
             TP.visionHandler = new VisionHandler();
             TP.audioHandler = new AudioHandler();
+            TP.speechHandler = new SpeechHandler();
         });
     }
 
@@ -336,7 +337,12 @@ class TokenPatrollerManager {
 
     async _navigateToNextPoint(plot, token) {
         try {
+            if (this._hasAudio(token.id)) {
+                await TP.audioHandler.updateAmbientPosition(plot.x, plot.y, this.tokenMap[token.id].audioId);
+            }
+
             await token.update(plot);
+
             this._updatelastRecordedLocation(plot, token);
         } catch (error) {
             if (this.debug) console.log(`Foundry-Patrol: Error in token navigation\n${error}`);
@@ -487,7 +493,6 @@ class TokenPatrollerManager {
                 lastRecordedLocation: {},
                 delayPeriod: [2000],
                 isDeleted: false,
-                patrolMessages: [],
                 audioId: null,
                 audioPath: null,
                 audioVolume: null,
@@ -496,6 +501,7 @@ class TokenPatrollerManager {
                 stopWhenSeen: false,
                 createCombat: false,
                 pauseGame: false,
+                enableQuotes: false,
                 patrolQuotes: [],
                 catchQuotes: [],
                 otherTokenVision: false,
@@ -523,7 +529,19 @@ class TokenPatrollerManager {
             lastRecordedLocation: {},
             delayPeriod: [2000],
             isDeleted: false,
-            patrolMessages: [],
+            audioId: null,
+            audioPath: null,
+            audioVolume: null,
+            audioRadius: null,
+            visionChecking: false,
+            stopWhenSeen: false,
+            createCombat: false,
+            pauseGame: false,
+            enableQuotes: false,
+            patrolQuotes: [],
+            catchQuotes: [],
+            otherTokenVision: false,
+            otherTokenVisionQuotes: [],
         };
         TP.tokenPatroller._saveAndUpdate(this.tokenMap);
         return this.tokenMap[tokenId];
@@ -741,8 +759,40 @@ class TokenPatrollerManager {
         TP.tokenPatroller._saveAndUpdate(this.tokenMap);
     }
 
-    getPatrolMessages(tokenId) {
-        return this.tokenMap[tokenId].patrolMessages;
+    getEnableQuotes(tokenId) {
+        return this.tokenMap[tokenId].enableQuotes;
+    }
+
+    getVisionChecking(tokenId) {
+        return this.tokenMap[tokenId].visionChecking;
+    }
+
+    getOtherVisionChecking(tokenId) {
+        return this.tokenMap[tokenId].otherTokenVision;
+    }
+
+    getStopWhenSeen(tokenId) {
+        return this.tokenMap[tokenId].stopWhenSeen;
+    }
+
+    getCreateCombat(tokenId) {
+        return this.tokenMap[tokenId].createCombat;
+    }
+
+    getPauseGame(tokenId) {
+        return this.tokenMap[tokenId].pauseGame;
+    }
+
+    getPatrolQuotes(tokenId) {
+        return this.tokenMap[tokenId].patrolQuotes;
+    }
+
+    getCatchQuotes(tokenId) {
+        return this.tokenMap[tokenId].catchQuotes;
+    }
+
+    getOtherTokenVisionQuotes(tokenId) {
+        return this.tokenMap[tokenId].otherTokenVisionQuotes;
     }
 
     getTokenData(tokenId) {
@@ -752,7 +802,9 @@ class TokenPatrollerManager {
 
     updateFormRelatedData(formData, tokenId) {
         for (const key in formData) {
-            this.tokenMap[tokenId][key] = formData[key];
+            if (key == "isLinear" && formData[key] != this.tokenMap[tokenId].isLinear) this._setLinear(tokenId);
+            else if (key == "inverted" && formData[key] != this.tokenMap[tokenId].inverted) this._setInverse(tokenId);
+            else this.tokenMap[tokenId][key] = formData[key];
         }
         this._saveAndUpdate(this.tokenMap);
     }
@@ -923,6 +975,7 @@ class PatrolMenu extends FormApplication {
             isLinear: tokenData.isLinear,
             otherTokenVision: tokenData.otherTokenVision,
             otherTokenVisionQuotes: this._quoteHelper(tokenData.otherTokenVisionQuotes), // Special
+            enableQuotes: tokenData.enableQuotes,
             patrolQuotes: this._quoteHelper(tokenData.patrolQuotes), // Special
             stopWhenSeen: tokenData.stopWhenSeen,
             visionChecking: tokenData.visionChecking,
@@ -951,7 +1004,6 @@ class PatrolMenu extends FormApplication {
     async _updateObject(event, formData) {
         //Handle Form Data
         console.log(formData);
-        TP.tokenPatroller.generateTokenSchema(this.tokenId);
         this._handleDelete(formData);
         await this._processDelay(formData);
         this._handleQuoteData(formData);
@@ -1347,25 +1399,52 @@ class VisionHandler {
     constructor() {}
 
     async evaluateSight(tokenId) {
-        let token = canvas.tokens.get(tokenId);
-        let playerTokens = await this._determineTokens();
-        const sightRadius = token.dimRadius >= token.brightRadius ? token.dimRadius : token.brightRadius;
-        const speaker = ChatMessage.getSpeaker({ token: token });
-        const messages = await TP.tokenPatroller.getPatrolMessages(tokenId)[0];
-        playerTokens.forEach(async (player) => {
-            let playerToken = canvas.tokens.get(player);
-            if (await this._checkVision(sightRadius, token.center, playerToken.x, playerToken.y)) {
-                await ChatMessage.create(
-                    {
-                        speaker: speaker,
-                        user: game.userId,
-                        content: messages,
-                        type: CHAT_MESSAGE_TYPES.EMOTE,
-                    },
-                    { chatBubble: true }
-                );
+        if (!TP.tokenPatroller.getVisionChecking(tokenId)) return;
+
+        const guardToken = canvas.tokens.get(tokenId);
+        const sightRadius = guardToken.dimRadius >= guardToken.brightRadius ? guardToken.dimRadius : guardToken.brightRadius;
+
+        this._handlePC(tokenId, guardToken.center, sightRadius);
+
+        if (TP.tokenPatroller.getOtherVisionChecking(tokenId) && TP.tokenPatroller.getEnableQuotes(tokenId))
+            this._handleNPC(tokenId, guardToken.center, sightRadius);
+    }
+
+    async _handlePC(tokenId, guardTokenCenter, sightRadius) {
+        let playerTokens = await this._determinePCTokens(tokenId);
+        let spottedTokens = [];
+
+        for (let i = 0; i < playerTokens.length; ++i) {
+            let playerToken = canvas.tokens.get(playerTokens[i]);
+
+            if (await this._checkVision(sightRadius, guardTokenCenter, playerToken.x, playerToken.y)) {
+                spottedTokens.push(playerToken);
+                if (TP.tokenPatroller.getStopWhenSeen(tokenId)) TP.tokenPatroller.stopPatrol(tokenId);
+                if (TP.tokenPatroller.getPauseGame(tokenId)) game.togglePause(true, true);
             }
-        });
+        }
+
+        if (TP.tokenPatroller.getCreateCombat(tokenId) && spottedTokens.length > 0) {
+            let combat = await game.combats.object.create({ scene: canvas.scene.id });
+            await combat.createEmbeddedEntity("Combatant", [{ tokenId: tokenId, hidden: false }]);
+            for (let i = 0; i < spottedTokens.length; ++i)
+                await combat.createEmbeddedEntity("Combatant", [{ tokenId: spottedTokens[i].id, hidden: false }]);
+        }
+
+        if (TP.tokenPatroller.getEnableQuotes(tokenId) && spottedTokens.length > 0) TP.speechHandler.handleSpeech(tokenId, "caught", spottedTokens);
+    }
+
+    async _handleNPC(tokenId, guardTokenCenter, sightRadius) {
+        let npcTokens = await this._determineNPCTokens(tokenId);
+        let spottedTokens = [];
+
+        for (let i = 0; i < npcTokens.length; ++i) {
+            let npcToken = canvas.tokens.get(npcTokens[i]);
+            if (await this._checkVision(sightRadius, guardTokenCenter, npcToken.x, npcToken.y)) {
+                spottedTokens.push(npcToken);
+            }
+        }
+        if (spottedTokens.length > 0) TP.speechHandler.handleSpeech(tokenId, "other", spottedTokens);
     }
 
     async _checkVision(sight, center, x, y) {
@@ -1373,8 +1452,16 @@ class VisionHandler {
         return fov.contains(x, y);
     }
 
-    async _determineTokens() {
-        return await canvas.tokens.placeables.filter((t) => t.actor && this._ownerIsPC(t.actor)).map((result) => result.id);
+    async _determinePCTokens(tokenId) {
+        const token = canvas.tokens.get(tokenId);
+
+        return await canvas.tokens.placeables.filter((t) => t != token && t.actor && this._ownerIsPC(t.actor)).map((result) => result.id);
+    }
+
+    async _determineNPCTokens(tokenId) {
+        const token = canvas.tokens.get(tokenId);
+
+        return await canvas.tokens.placeables.filter((t) => t != token && !this._ownerIsPC(t.actor)).map((result) => result.id);
     }
 
     _ownerIsPC(actor) {
@@ -1386,6 +1473,47 @@ class VisionHandler {
         return false;
     }
     //
+}
+
+class SpeechHandler {
+    constructor() {}
+
+    async createChat(tokenId, message) {
+        const token = canvas.tokens.get(tokenId);
+        const speaker = ChatMessage.getSpeaker({ token: token });
+        await ChatMessage.create(
+            {
+                speaker: speaker,
+                user: game.userId,
+                content: message,
+                type: CHAT_MESSAGE_TYPES.EMOTE,
+            },
+            { chatBubble: true }
+        );
+    }
+
+    async handleSpeech(tokenId, type, spottedTokens = []) {
+        let messages;
+        if (type === "patrol") messages = await TP.tokenPatroller.getPatrolQuotes(tokenId);
+        else if (type === "caught") messages = await TP.tokenPatroller.getCatchQuotes(tokenId);
+        else if (type === "other") messages = await TP.tokenPatroller.getOtherTokenVisionQuotes(tokenId);
+        else return;
+
+        if (!messages) return;
+
+        let message = messages[Math.floor(Math.random() * messages.length)];
+
+        if (spottedTokens.length > 0) {
+            message = this._parseTokenName(message, spottedTokens[0].name); // Just the first token found is fine for
+        }
+
+        this.createChat(tokenId, message);
+    }
+
+    _parseTokenName(quote, replacement) {
+        let regex = /{\s*token.name\s*}/gm;
+        return quote.replace(regex, replacement);
+    }
 }
 
 class AudioHandler {
