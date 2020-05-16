@@ -213,6 +213,9 @@ class TokenPatrollerManager {
         let token = canvas.tokens.get(tokenId);
         await this._handleDelayPeriod(delay, tokenId);
         let patrolData = this.tokenMap[tokenId];
+
+        if (!patrolData) return;
+
         this._updatelastRecordedLocation(undefined, token);
         if (patrolData.isWalking) return;
         else patrolData.isWalking = true;
@@ -236,7 +239,7 @@ class TokenPatrollerManager {
 
     async _navigationCycle(cycle, token) {
         let patrolData = this.tokenMap[token.id];
-        let patrolPoints = patrolData.isLinear ? patrolData.countinousRoutes : patrolData.plots;
+        let patrolPoints = patrolData.isLinear ? patrolData.linearPath : patrolData.plots;
         let forceReturn;
         const settings = {
             // Reduces magic numbers.
@@ -446,6 +449,7 @@ class TokenPatrollerManager {
             let yMod = plot[ROUTE_START].y >= plot[len].y ? 1 : -1;
             this._getGeneral(tokenId, "endCountinousRoutes").length = 0;
             this._generateLinearRoute(this._getGeneral(tokenId, "endCountinousRoutes"), plot[len], plot[ROUTE_START], xMod, yMod);
+            this._generateLinearPath(tokenId);
         } else if (plot.length < 2) {
             this._getGeneral(tokenId, "countinousRoutes").push(plot[0]);
             TP.tokenPatroller._saveAndUpdate(this.tokenMap);
@@ -479,6 +483,18 @@ class TokenPatrollerManager {
         }
     }
 
+    _generateLinearPath(tokenId) {
+        const result = [];
+        let contRoutes = this.tokenMap[tokenId].countinousRoutes;
+        let endRoutes = this.tokenMap[tokenId].endCountinousRoutes;
+
+        Object.keys(contRoutes).forEach((key) => result.push(contRoutes[key]));
+
+        Object.keys(endRoutes).forEach((key) => result.push(endRoutes[key]));
+
+        this.tokenMap[tokenId].linearPath = result;
+    }
+
     updateTokenRoute(tokenId, updateData) {
         if (this.tokenMap[tokenId]) {
             this.tokenMap[tokenId]["plots"].push(updateData);
@@ -488,6 +504,7 @@ class TokenPatrollerManager {
             this.tokenMap[tokenId] = {
                 color: generatedColor,
                 plots: [],
+                linearPath: [],
                 countinousRoutes: [],
                 endCountinousRoutes: [],
                 enabled: false,
@@ -525,6 +542,7 @@ class TokenPatrollerManager {
         this.tokenMap[tokenId] = {
             color: generatedColor,
             plots: [],
+            linearPath: [],
             countinousRoutes: [],
             endCountinousRoutes: [],
             enabled: false,
@@ -734,12 +752,14 @@ class TokenPatrollerManager {
     }
 
     _setLinear(tokenId) {
+        if (!this.tokenMap[tokenid]) return;
         this.tokenMap[tokenId].isLinear = !this.tokenMap[tokenId].isLinear;
         this.tokenMap[tokenId].lastPos = 0;
         TP.tokenPatroller._saveAndUpdate(this.tokenMap);
     }
 
     _setInverse(tokenId) {
+        if (!this.tokenMap[tokenId]) return;
         this.tokenMap[tokenId].inverted = !this.tokenMap[tokenId].inverted;
         this.tokenMap[tokenId].lastPos = 0;
         TP.tokenPatroller._saveAndUpdate(this.tokenMap);
@@ -747,16 +767,19 @@ class TokenPatrollerManager {
     }
 
     _setInverseReturn(token) {
+        if (!this.tokenMap[token.id]) return;
         this.tokenMap[token.id].onInverseReturn = !this.tokenMap[token.id].onInverseReturn;
         TP.tokenPatroller._saveAndUpdate(this.tokenMap);
     }
 
     _disableWalking(token) {
+        if (!this.tokenMap[token.id]) return;
         this.tokenMap[token.id].isWalking = false;
         TP.tokenPatroller._saveAndUpdate(this.tokenMap);
     }
 
     async getDelayPeriod(tokenId) {
+        if (!this.tokenMap[tokenId]) return;
         let patrolData = this.tokenMap[tokenId];
         let userDisplayDelay = []; // a more visually friendly format.
         for (let i = 0; i < patrolData.delayPeriod.length; ++i) {
@@ -1326,7 +1349,7 @@ class RoutesKeyLogger {
                     window.Azzu.SettingsTypes.KeyBinding.parse(game.settings.get("foundry-patrol", "startRoute"))
                 )
             ) {
-                this._startAllRoutes(this.maps[this.keys.one]);
+                this._startAllRoutes();
                 fired = true;
             } else if (
                 window.Azzu.SettingsTypes.KeyBinding.eventIsForBinding(
@@ -1334,7 +1357,7 @@ class RoutesKeyLogger {
                     window.Azzu.SettingsTypes.KeyBinding.parse(game.settings.get("foundry-patrol", "stopRoute"))
                 )
             ) {
-                this._haltAllRoutes(this.maps[this.keys.one]);
+                this._haltAllRoutes();
                 fired = true;
             } else if (
                 window.Azzu.SettingsTypes.KeyBinding.eventIsForBinding(
@@ -1350,7 +1373,7 @@ class RoutesKeyLogger {
                     window.Azzu.SettingsTypes.KeyBinding.parse(game.settings.get("foundry-patrol", "clearRoute"))
                 )
             ) {
-                this._clearAllRoutes(this.maps[this.keys.one]);
+                this._clearAllRoutes();
                 fired = true;
             } else if (
                 window.Azzu.SettingsTypes.KeyBinding.eventIsForBinding(
@@ -1384,34 +1407,31 @@ class RoutesKeyLogger {
      *  requested token Patrols function interface.
      */
 
-    _haltAllRoutes(selectedToggle) {
-        let tokens = canvas.tokens.controlledTokens.length > 0 && selectedToggle ? canvas.tokens.controlledTokens : canvas.tokens.ownedTokens;
+    _haltAllRoutes() {
+        let tokens = canvas.tokens.controlledTokens.length > 0 ? canvas.tokens.controlledTokens : canvas.tokens.ownedTokens;
         for (let i = 0; i < tokens.length; ++i) {
-            if (selectedToggle) TP.tokenPatroller._disableWalking(tokens[i]);
-            else TP.tokenPatroller._disableWalking(tokens[i]);
+            TP.tokenPatroller._disableWalking(tokens[i]);
         }
         ui.notifications.info("Routes halted for this scene");
     }
 
-    _startAllRoutes(selectedToggle) {
-        let tokens = canvas.tokens.controlledTokens.length > 0 && selectedToggle ? canvas.tokens.controlledTokens : canvas.tokens.ownedTokens;
+    _startAllRoutes() {
+        let tokens = canvas.tokens.controlledTokens.length > 0 ? canvas.tokens.controlledTokens : canvas.tokens.ownedTokens;
         for (let i = 0; i < tokens.length; ++i) {
-            if (selectedToggle) TP.tokenPatroller.startPatrol(undefined, tokens[i].id);
-            else TP.tokenPatroller.startPatrol(undefined, tokens[i].id);
+            TP.tokenPatroller.startPatrol(undefined, tokens[i].id);
         }
         ui.notifications.info("Routes started for this scene");
     }
 
-    _clearAllRoutes(selectedToggle) {
+    _clearAllRoutes() {
         let tokens = canvas.tokens.controlledTokens.length > 0 && selectedToggle ? canvas.tokens.controlledTokens : canvas.tokens.ownedTokens;
         for (let i = 0; i < tokens.length; ++i) {
-            if (selectedToggle) TP.tokenPatroller.removeTokenRoute(tokens[i].id, true);
-            else TP.tokenPatroller.removeTokenRoute(tokens[i].id, true);
+            TP.tokenPatroller.removeTokenRoute(tokens[i].id, true);
         }
         ui.notifications.info("Routes cleared for this scene");
     }
 
-    _resetAllColors(selectedToggle) {
+    _resetAllColors() {
         this._generalLoop(Patrols.prototype._resetColor, selectedToggle);
         ui.notifications.info("Colors changed for this scene");
     }
