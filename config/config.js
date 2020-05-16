@@ -46,7 +46,7 @@ TP["PATROLCONFIG"] = [
     {
         key: "stopRoute",
         settings: {
-            name: "Start Routes Hotkey",
+            name: "Stop Routes Hotkey",
             hint: "Enter a keybinding to halt routes.",
             type: window.Azzu.SettingsTypes.KeyBinding,
             default: "Ctrl + Shift + H",
@@ -57,7 +57,7 @@ TP["PATROLCONFIG"] = [
     {
         key: "addTokenPoint",
         settings: {
-            name: "Start Routes Hotkey",
+            name: "Add Plot Hotkey",
             hint: "Enter a keybinding to add a plot.",
             type: window.Azzu.SettingsTypes.KeyBinding,
             default: "Ctrl + Shift + R",
@@ -68,7 +68,7 @@ TP["PATROLCONFIG"] = [
     {
         key: "clearRoute",
         settings: {
-            name: "Start Routes Hotkey",
+            name: "Clear Plots Hotkey",
             hint: "Enter a keybinding to clear a route.",
             type: window.Azzu.SettingsTypes.KeyBinding,
             default: "Ctrl + Shift + C",

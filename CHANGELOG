@@ -15,7 +15,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Quotes: Quotes are now an option! Using this feature will make tokens speak as they patrol their route. If vision mode is enabled, special quotes will be played when seen!
 - Vision: Tokens can now be given optional vision to start combat when players are seen, say something when a player enters the range, or even stop the route!
 - Audio: A moving audio range can be set up to follow the token on it's route, that way you can create footsteps, flying, or other noises creatures may make. 
-- Token rotation: Allows tokens to face towards the direction of their next route. Good for topdown tokens!
+- Token rotation: Allows tokens to face towards the direction of their next route. Good for topdown tokens! This comes in both a global form and individual level
 - Global key configuration: You can now configure what keybinding you would like to use for your route start/stop
 - API calling available: Namespaced under TP
     - TP.tokenPatroller.startPatrol(delay: string, tokenId: string)
@@ -26,6 +26,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### Changed
 - Token paths have been changed from system settings to a file. This will prevent unintentional bogging down of system resources on setting updates. 
 - Previously, when token routes were longer than the delay, the token would change directions mid-cycle. That has been changed and the delay will only begin after the token has stopped moving.
+- When using hot keys, selecting tokens will affect only the selected tokens. If no tokens are selected, then it is applied to all tokens.
+
 
 ### Bug Fixes
 - Issue where 'X' would show on a token after a reboot (if the token was moving prior to the restart) has been fixed.

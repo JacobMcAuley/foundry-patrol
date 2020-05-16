@@ -752,7 +752,7 @@ class TokenPatrollerManager {
     }
 
     _setLinear(tokenId) {
-        if (!this.tokenMap[tokenid]) return;
+        if (!this.tokenMap[tokenId]) return;
         this.tokenMap[tokenId].isLinear = !this.tokenMap[tokenId].isLinear;
         this.tokenMap[tokenId].lastPos = 0;
         TP.tokenPatroller._saveAndUpdate(this.tokenMap);
@@ -904,7 +904,7 @@ class TokenHud {
 
         const deletePlotPoint = $(`<i class="control-icon fas fa-trash-alt" style="margin-left: 4px;" title="Delete Point"></i>`);
 
-        const patrolMenu = $(`<i class="control-icon fas fa-caret-down" style="margin-left: 4px;" title="Delete Point"></i>`);
+        const patrolMenu = $(`<i class="control-icon fas fa-caret-down" style="margin-left: 4px;" title="Patrol Menu"></i>`);
 
         let plotDirection = $(`<i class="control-icon fas fa-recycle" style="margin-left: 4px;" title="Cycle Mode"></i>`);
 

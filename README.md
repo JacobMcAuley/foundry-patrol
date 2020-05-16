@@ -1,6 +1,6 @@
 # Foundry Token Patrol
 
-This module allows GMs (and optionally players) to set patrol points for their tokens, making the tokens move between the set points without input.
+This module allows GMs (and optionally players) to set patrol points for their tokens, making the tokens move between the set points without input. Foundry Patrol offers a wide variety of features! I highly recommend watching the linked video below for a demonstration. The video is long, but you're welcome to skip through it or watch it at max speed!
 
 ### Reasoning
 
@@ -26,11 +26,6 @@ That being said here are all the known issues at the moment:
 
 1. Tokens moving through linear mode on a diagonal may take an unexpect route to reach the point. This is how the function currently works. Future updates will adjust this.
 
-### Planned features
-
-1. A loiter mode: Tokens will move about after stopping at a node
-2. Player use mode: Allow players to set patrols for their owned tokens.
-
 ### Installation Instructions
 
 To install Foundry-patrol, do the following:
@@ -51,19 +46,6 @@ Auto-Installation Instructions:
 1. Download and install the mod, then enable it on Foundry.
 2. Right click a token to view the tokenHUD.
 3. Refer to the following image for descriptions of icons.
-
-### Keys
-
-Workflow short cuts:
-Starts with : SHIFT - Q
-
-1. R -> Adds a plot point (Think Route)
-2. C -> Clears routes (Think Clear)
-3. T -> Changes all assigned route colors
-4. G -> Starts routes (Think Go)
-5. H -> Halts all routes (Think Halt)
-
-Additional Note: Using SHIFT - Q - 1(one) - KEY will result in only the highlighted tokens being affected opposed to globally.
 
 ### Examples
 
