@@ -24,6 +24,11 @@
                     <p class="notes">This will make the token go back and forth, rather than a circle.</p>
                 </li>
                 <li>
+                    <label>Rotate token: </label>
+                    <input type="checkbox" name="tokenRotation" data-dtype="Boolean" {{{determineChecked tokenRotation}}} />
+                    <p class="notes">This will rotate the token towards the next point. This works well with top down tokens.</p>
+                </li>
+                <li>
                     <label>Set Token delays</label>
                     <textarea name="delayPeriod" data-dtype="String" placeholder='Ex1: "2,3,4,5" Ex2: "2-4" (1,2,3,4)'>{{delayPeriod}}</textarea>
                     <p class="notes">This will set the delays the token will wait between points.</p>

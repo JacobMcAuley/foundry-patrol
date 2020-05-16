@@ -1,0 +1,36 @@
+# Changelog
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+
+## [1.2.1] - 2020-05-09
+
+### Added
+- Token settings: Tokens now have a down caret on the hud. This will open a token patrol menu for all your needs
+    - Settings option
+    - Quote options
+    - Vision options --> Note: A small radius size will cause strange issue. I'd advise 20 >= 
+    - Audio options
+- Disable HUD option: You can now disble the tokenPatroller HUD if you want to clear the clutter, the caret still remains. Keybindings still work
+- Quotes: Quotes are now an option! Using this feature will make tokens speak as they patrol their route. If vision mode is enabled, special quotes will be played when seen!
+- Vision: Tokens can now be given optional vision to start combat when players are seen, say something when a player enters the range, or even stop the route!
+- Audio: A moving audio range can be set up to follow the token on it's route, that way you can create footsteps, flying, or other noises creatures may make. 
+- Token rotation: Allows tokens to face towards the direction of their next route. Good for topdown tokens!
+- Global key configuration: You can now configure what keybinding you would like to use for your route start/stop
+- API calling available: Namespaced under TP
+    - TP.tokenPatroller.startPatrol(delay: string, tokenId: string)
+    - TP.tokenPatroller.stopPatrol(tokenId: string)
+    - TP.tokenPatroller.addPlotPoint(tokenId: string) // Takes the tokens current position as a point.
+
+
+### Changed
+- Token paths have been changed from system settings to a file. This will prevent unintentional bogging down of system resources on setting updates. 
+- Previously, when token routes were longer than the delay, the token would change directions mid-cycle. That has been changed and the delay will only begin after the token has stopped moving.
+
+### Bug Fixes
+- Issue where 'X' would show on a token after a reboot (if the token was moving prior to the restart) has been fixed.
+- Fixed a bug where deleting a token didn't remove corresponding token path data resulting in a massively growing data file.
+
+## Known Issue:
+- Activating another scene while tokens are moving will result in a unique error where the active scene indicator will no longer function
+  Scenes will still change and work as expected, but the active indicator will not update. This is a issue with core, as the issue persists still occurs with the module disabled

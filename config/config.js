@@ -13,7 +13,7 @@ TP["PATROLCONFIG"] = [
     {
         key: "tokenRotation",
         settings: {
-            name: "Enable token Rotation: ",
+            name: "Enable GLOBAL Token Rotation: ",
             hint: "Enables tokens to face the direction their route moves them. Good with topdown tokens",
             type: Boolean,
             default: false,

@@ -7,6 +7,7 @@ class TokenPatrollerInitalizer {
         TokenPatrollerInitalizer.hooksRenderTokenHUD();
         TokenPatrollerInitalizer.hooksControlToken();
         TokenPatrollerInitalizer.hooksDeleteToken();
+        TokenPatrollerInitalizer.hooksPreDeleteAmbientSounds();
         //TokenPatrollerInitalizer.hooksPreUpdateScene();
     }
 
@@ -68,6 +69,12 @@ class TokenPatrollerInitalizer {
     static hooksDeleteToken() {
         Hooks.on("deleteToken", (scene, tokenInfo) => {
             TP.tokenPatroller.deleteToken(tokenInfo._id);
+        });
+    }
+
+    static hooksPreDeleteAmbientSounds() {
+        Hooks.on("preDeleteAmbientSound", (scene, ambientSound, flags, sceneId) => {
+            TP.tokenPatroller.deleteAmbientSound(ambientSound.flags.tokenId);
         });
     }
 
@@ -278,7 +285,7 @@ class TokenPatrollerManager {
         const sleep = (m) => new Promise((r) => setTimeout(r, m));
         if (patrolData.onInverseReturn == onReturn) {
             for (iterator; operation(iterator, comparison); iterator = iterator + increment) {
-                if (game.settings.get("foundry-patrol", "tokenRotation")) {
+                if (game.settings.get("foundry-patrol", "tokenRotation") || this.tokenMap[token.id].tokenRotation) {
                     //Rotation
                     let dX = patrolPoints[iterator].x - patrolData.lastRecordedLocation.x;
                     let dY = patrolPoints[iterator].y - patrolData.lastRecordedLocation.y;
@@ -497,6 +504,7 @@ class TokenPatrollerManager {
                 audioPath: null,
                 audioVolume: null,
                 audioRadius: null,
+                tokenRotation: false,
                 visionChecking: false,
                 stopWhenSeen: false,
                 createCombat: false,
@@ -529,6 +537,7 @@ class TokenPatrollerManager {
             lastRecordedLocation: {},
             delayPeriod: [2000],
             isDeleted: false,
+            tokenRotation: false,
             audioId: null,
             audioPath: null,
             audioVolume: null,
@@ -617,6 +626,17 @@ class TokenPatrollerManager {
     deleteToken(tokenId) {
         if (!this.tokenMap[tokenId]) return;
         delete this.tokenMap[tokenId];
+        TP.tokenPatroller._saveAndUpdate(this.tokenMap);
+    }
+
+    deleteAmbientSound(tokenId) {
+        if (!tokenId || !this.tokenMap[tokenId]) return;
+
+        this.tokenMap[tokenId].audioId = null;
+        this.tokenMap[tokenId].audioPath = null;
+        this.tokenMap[tokenId].audioVolume = null;
+        this.tokenMap[tokenId].audioRadius = null;
+
         TP.tokenPatroller._saveAndUpdate(this.tokenMap);
     }
 
@@ -757,6 +777,22 @@ class TokenPatrollerManager {
 
         this.tokenMap[tokenId].patrolMessages.push(message);
         TP.tokenPatroller._saveAndUpdate(this.tokenMap);
+    }
+
+    getAudioPath(tokenId) {
+        return this.tokenMap[tokenId].audioPath;
+    }
+
+    getAudioVolume(tokenId) {
+        return this.tokenMap[tokenId].audioVolume;
+    }
+
+    getAudioRadius(tokenId) {
+        return this.tokenMap[tokenId].audioRadius;
+    }
+
+    getAudioID(tokenId) {
+        return this.tokenMap[tokenId].audioId;
     }
 
     getEnableQuotes(tokenId) {
@@ -973,6 +1009,7 @@ class PatrolMenu extends FormApplication {
             delayPeriod: this._delayHelper(tokenData.delayPeriod), // Special
             inverted: tokenData.inverted,
             isLinear: tokenData.isLinear,
+            tokenRotation: tokenData.tokenRotation,
             otherTokenVision: tokenData.otherTokenVision,
             otherTokenVisionQuotes: this._quoteHelper(tokenData.otherTokenVisionQuotes), // Special
             enableQuotes: tokenData.enableQuotes,
@@ -1039,7 +1076,21 @@ class PatrolMenu extends FormApplication {
     }
 
     async _handleAudioData(formData) {
-        if (TP.audioHandler.hasAudio(this.tokenId) || formData.audioPath.length == 0 || !formData.audioRadius || !formData.audioVolume) return;
+        const audioPath = formData.audioPath;
+        const audioRadius = formData.audioRadius;
+        const audioVolume = formData.audioVolume;
+
+        if (
+            TP.audioHandler.hasAudio(this.tokenId) &&
+            (audioPath != TP.tokenPatroller.getAudioPath ||
+                audioRadius != TP.tokenPatroller.getAudioRadius ||
+                audioVolume != TP.tokenPatroller.getAudioVolume)
+        ) {
+            TP.audioHandler.updateAudioInfo(TP.tokenPatroller.getAudioID(this.tokenId), audioPath, audioRadius, audioVolume);
+            return;
+        } else if (TP.audioHandler.hasAudio(this.tokenId) || audioPath.length == 0 || !formData.audioRadius || !formData.audioVolume) return;
+
+        //
 
         formData["audioId"] = (
             await TP.audioHandler.createPatrolAudio(this.tokenId, formData.audioPath, formData.audioRadius, formData.audioVolume)
@@ -1532,6 +1583,7 @@ class AudioHandler {
                 path: file,
                 repeat: true,
                 volume: AudioHelper.inputToVolume(volume),
+                flags: { tokenId: tokenId },
             });
         } catch {
             console.log("Error in creating audio");
@@ -1543,6 +1595,12 @@ class AudioHandler {
         let sound = canvas.sounds.placeables.filter((entry) => entry.id == ambientSoundId);
         if (!sound) return;
         await sound[0].update({ x: x + halfGrid, y: y + halfGrid });
+    }
+
+    async updateAudioInfo(ambientSoundId, file, radius, volume) {
+        let sound = canvas.sounds.placeables.filter((entry) => entry.id == ambientSoundId);
+        if (!sound) return;
+        await sound[0].update({ path: file, radius: radius, volume: AudioHelper.inputToVolume(volume) });
     }
 
     hasAudio(tokenId) {
