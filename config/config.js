@@ -33,6 +33,17 @@ TP["PATROLCONFIG"] = [
         },
     },
     {
+        key: "combatPause",
+        settings: {
+            name: "Pause patrols on combat start",
+            hint: "When an encounter is started via begin Combat, patrols will stop.",
+            type: Boolean,
+            default: false,
+            scope: "client",
+            config: true,
+        },
+    },
+    {
         key: "startRoute",
         settings: {
             name: "Start Routes Hotkey",

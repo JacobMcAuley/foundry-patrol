@@ -240,6 +240,7 @@ class TokenPatrollerManager {
     async _navigationCycle(cycle, token) {
         let patrolData = this.tokenMap[token.id];
         let patrolPoints = patrolData.isLinear ? patrolData.linearPath : patrolData.plots;
+
         let forceReturn;
         const settings = {
             // Reduces magic numbers.
@@ -288,6 +289,7 @@ class TokenPatrollerManager {
         const sleep = (m) => new Promise((r) => setTimeout(r, m));
         if (patrolData.onInverseReturn == onReturn) {
             for (iterator; operation(iterator, comparison); iterator = iterator + increment) {
+                let combatStarted = game.settings.get(TP.MODULENAME, "combatPause");
                 if (game.settings.get("foundry-patrol", "tokenRotation") || this.tokenMap[token.id].tokenRotation) {
                     //Rotation
                     let dX = patrolPoints[iterator].x - patrolData.lastRecordedLocation.x;
@@ -300,7 +302,14 @@ class TokenPatrollerManager {
                 } else await sleep(patrolData.delayPeriod[Math.floor(Math.random() * patrolData.delayPeriod.length)]); // Randomly selects a value within the delay period.
                 if (!this.tokenMap[token.id]) return;
 
-                if (patrolData.isWalking && !game.paused && !this._wasTokenMoved(token) && this._validatePatrol(token) && !patrolData.isDeleted) {
+                if (
+                    patrolData.isWalking &&
+                    !game.paused &&
+                    (!combatStarted || !(combatStarted && getProperty(game.combats.active, "started"))) &&
+                    !this._wasTokenMoved(token) &&
+                    this._validatePatrol(token) &&
+                    !patrolData.isDeleted
+                ) {
                     await this._navigateToNextPoint(patrolPoints[iterator], token);
                     await this._ensureAnimationCompletion(token);
                     await TP.speechHandler.handleSpeech(token.id, "patrol");
@@ -311,7 +320,7 @@ class TokenPatrollerManager {
                         await this.sayMessage(token);
                     }
                 } else {
-                    if (game.paused == true) {
+                    if (game.paused == true || combatStarted == true) {
                         iterator = iterator - increment;
                     } else {
                         return true;
@@ -650,8 +659,7 @@ class TokenPatrollerManager {
         if (!this.tokenMap[tokenId]) return;
 
         let audioId = this.tokenMap[tokenId].audioId;
-        if(audioId)
-            canvas.sounds.placeables.filter((entry) => entry.id == audioId)[0].delete();
+        if (audioId) canvas.sounds.placeables.filter((entry) => entry.id == audioId)[0].delete();
 
         delete this.tokenMap[tokenId];
         TP.tokenPatroller._saveAndUpdate(this.tokenMap);
@@ -813,77 +821,77 @@ class TokenPatrollerManager {
     }
 
     getAudioPath(tokenId) {
-        if(!this.tokenMap[tokenId]) return;
+        if (!this.tokenMap[tokenId]) return;
         return this.tokenMap[tokenId].audioPath;
     }
 
-    getPatrolPercent(tokenId){
-        if(!this.tokenMap[tokenId]) return;
+    getPatrolPercent(tokenId) {
+        if (!this.tokenMap[tokenId]) return;
         return this.tokenMap[tokenId].patrolPercent;
     }
 
-    getAudioLocal(tokenId){
-        if(!this.tokenMap[tokenId]) return;
-        return this.tokenMap[tokenId].audioPath
+    getAudioLocal(tokenId) {
+        if (!this.tokenMap[tokenId]) return;
+        return this.tokenMap[tokenId].audioPath;
     }
 
     getAudioVolume(tokenId) {
-        if(!this.tokenMap[tokenId]) return;
+        if (!this.tokenMap[tokenId]) return;
         return this.tokenMap[tokenId].audioVolume;
     }
 
     getAudioRadius(tokenId) {
-        if(!this.tokenMap[tokenId]) return;
+        if (!this.tokenMap[tokenId]) return;
         return this.tokenMap[tokenId].audioRadius;
     }
 
     getAudioID(tokenId) {
-        if(!this.tokenMap[tokenId]) return;
+        if (!this.tokenMap[tokenId]) return;
         return this.tokenMap[tokenId].audioId;
     }
 
     getEnableQuotes(tokenId) {
-        if(!this.tokenMap[tokenId]) return;
+        if (!this.tokenMap[tokenId]) return;
         return this.tokenMap[tokenId].enableQuotes;
     }
 
     getVisionChecking(tokenId) {
-        if(!this.tokenMap[tokenId]) return;
+        if (!this.tokenMap[tokenId]) return;
         return this.tokenMap[tokenId].visionChecking;
     }
 
     getOtherVisionChecking(tokenId) {
-        if(!this.tokenMap[tokenId]) return;
+        if (!this.tokenMap[tokenId]) return;
         return this.tokenMap[tokenId].otherTokenVision;
     }
 
     getStopWhenSeen(tokenId) {
-        if(!this.tokenMap[tokenId]) return;
+        if (!this.tokenMap[tokenId]) return;
         return this.tokenMap[tokenId].stopWhenSeen;
     }
 
     getCreateCombat(tokenId) {
-        if(!this.tokenMap[tokenId]) return;
+        if (!this.tokenMap[tokenId]) return;
         return this.tokenMap[tokenId].createCombat;
     }
 
     getPauseGame(tokenId) {
-        if(!this.tokenMap[tokenId]) return;
+        if (!this.tokenMap[tokenId]) return;
         return this.tokenMap[tokenId].pauseGame;
     }
 
     getPatrolQuotes(tokenId) {
-        if(!this.tokenMap[tokenId]) return;
+        if (!this.tokenMap[tokenId]) return;
         return this.tokenMap[tokenId].patrolQuotes;
     }
 
     getCatchQuotes(tokenId) {
-        if(!this.tokenMap[tokenId]) return;
+        if (!this.tokenMap[tokenId]) return;
         return this.tokenMap[tokenId].catchQuotes;
     }
 
     getOtherTokenVisionQuotes(tokenId) {
-        if(!this.tokenMap[tokenId]) return;
+        if (!this.tokenMap[tokenId]) return;
         return this.tokenMap[tokenId].otherTokenVisionQuotes;
     }
 
@@ -1098,7 +1106,6 @@ class PatrolMenu extends FormApplication {
 
     async _updateObject(event, formData) {
         //Handle Form Data
-        console.log(formData);
         this._handleDelete(formData);
         await this._processDelay(formData);
         this._handleQuoteData(formData);
@@ -1122,12 +1129,14 @@ class PatrolMenu extends FormApplication {
     }
 
     _handleQuoteData(formData) {
-        let patrolQuotes = formData.patrolQuotes.length <= 0 ? null : formData.patrolQuotes.match(/'([^']*)'/g).map((entry) => entry.slice(1, -1));
-        let catchQuotes = formData.catchQuotes.length <= 0 ? null : formData.catchQuotes.match(/'([^']*)'/g).map((entry) => entry.slice(1, -1));
+        let patrolQuotes =
+            formData.patrolQuotes.length <= 0 ? null : (formData.patrolQuotes.match(/'([^']*)'/g) || []).map((entry) => entry.slice(1, -1));
+        let catchQuotes =
+            formData.catchQuotes.length <= 0 ? null : (formData.catchQuotes.match(/'([^']*)'/g) || []).map((entry) => entry.slice(1, -1));
         let otherTokenVisionQuotes =
             formData.otherTokenVisionQuotes.length <= 0
                 ? null
-                : formData.otherTokenVisionQuotes.match(/'([^']*)'/g).map((entry) => entry.slice(1, -1));
+                : (formData.otherTokenVisionQuotes.match(/'([^']*)'/g) || []).map((entry) => entry.slice(1, -1));
         formData.patrolQuotes = patrolQuotes;
         formData.catchQuotes = catchQuotes;
         formData.otherTokenVisionQuotes = otherTokenVisionQuotes;
@@ -1587,6 +1596,7 @@ class SpeechHandler {
     constructor() {}
 
     async createChat(tokenId, message) {
+        if (message == undefined) return;
         const token = canvas.tokens.get(tokenId);
         const speaker = ChatMessage.getSpeaker({ token: token });
         await ChatMessage.create(
@@ -1602,15 +1612,13 @@ class SpeechHandler {
 
     async handleSpeech(tokenId, type, spottedTokens = []) {
         let messages;
-        if (type === "patrol"){
-            if(this._determineIfPatrolDisplay(tokenId)) 
-                messages = await TP.tokenPatroller.getPatrolQuotes(tokenId);
-        }
-        else if (type === "caught") messages = await TP.tokenPatroller.getCatchQuotes(tokenId);
+        if (type === "patrol") {
+            if (this._determineIfPatrolDisplay(tokenId)) messages = await TP.tokenPatroller.getPatrolQuotes(tokenId);
+        } else if (type === "caught") messages = await TP.tokenPatroller.getCatchQuotes(tokenId);
         else if (type === "other") messages = await TP.tokenPatroller.getOtherTokenVisionQuotes(tokenId);
         else return;
 
-        if (!messages) return;
+        if (!messages || messages.length <= 0) return;
 
         let message = messages[Math.floor(Math.random() * messages.length)];
 
@@ -1621,18 +1629,13 @@ class SpeechHandler {
         this.createChat(tokenId, message);
     }
 
-    _determineIfPatrolDisplay(tokenId){
+    _determineIfPatrolDisplay(tokenId) {
         const percentChance = TP.tokenPatroller.getPatrolPercent(tokenId);
-        const percentRoll = Math.random()
-        if( percentChance >= 100)
-            return true;
-        else if( percentChance <= 0)
-            return false;
-        else if(percentRoll <= percentChance/100)
-            return true;
+        const percentRoll = Math.random();
+        if (percentChance >= 100) return true;
+        else if (percentChance <= 0) return false;
+        else if (percentRoll <= percentChance / 100) return true;
         return false;
-        
-
     }
 
     _parseTokenName(quote, replacement) {
@@ -1649,7 +1652,7 @@ class AudioHandler {
         const token = canvas.tokens.get(tokenId);
         try {
             return await AmbientSound.create({
-                type: (audioLocal) ?  "l" : "g",
+                type: audioLocal ? "l" : "g",
                 x: token.x + halfGrid,
                 y: token.y + halfGrid,
                 radius: radius,
@@ -1674,7 +1677,7 @@ class AudioHandler {
     async updateAudioInfo(ambientSoundId, file, audioLocal, radius, volume) {
         let sound = canvas.sounds.placeables.filter((entry) => entry.id == ambientSoundId);
         if (!sound) return;
-        await sound[0].update({ path: file, type:  (audioLocal) ?  "l" : "g", radius: radius, volume: AudioHelper.inputToVolume(volume) });
+        await sound[0].update({ path: file, type: audioLocal ? "l" : "g", radius: radius, volume: AudioHelper.inputToVolume(volume) });
     }
 
     hasAudio(tokenId) {
