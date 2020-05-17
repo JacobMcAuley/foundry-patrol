@@ -603,7 +603,8 @@ class TokenPatrollerManager {
             this.tokenMap[tokenId]["plots"].pop();
             this.tokenMap[tokenId].lastPos = 0;
             this.tokenMap[tokenId]["countinousRoutes"].length -= this._adjustLength(p1, p2);
-            this.linearWalk(true);
+            this.linearWalk(false, tokenId);
+            this.linearWalk(true, tokenId);
         }
         TP.tokenPatroller._saveAndUpdate(this.tokenMap);
         this.livePlotUpdate(tokenId);
