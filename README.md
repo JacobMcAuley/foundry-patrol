@@ -6,6 +6,12 @@ This module allows GMs (and optionally players) to set patrol points for their t
 
 Using this mod, you will be able to set up "Patrol Routes" which tokens will move to based on a timing of your choice. This can give certain scenes a more life like appearance! Make your markets full of life and give your castles that patrolling retinue they've always needed!
 
+### WARNING (READ)
+
+A lot of these features use calculations that may or may not be overwhelming to your computer. Please keep this in mind when using quotes/vision/audio with several tokens on one scene. 
+
+If your computer is capable of handling all the weight, by all means, please go wild!
+
 ### FVTT Version
 
 -   Tested on FVTT v0.5.5
@@ -15,7 +21,7 @@ Using this mod, you will be able to set up "Patrol Routes" which tokens will mov
 
 **Remember to back up your world before using mods**
 
-Bugs are inevitable, despite my best efforts to remove all that I could find. If you happen to locate any or if something doesn't appear to work as intended, please don't hesitate to contact me on Discord at (JacobMcAuley#3461). I will correct the issue and push it out as soon as possible.
+Bugs are inevitable, despite my best efforts to remove all that I could find. Especially because this update is adding a bunch of new features! If you happen to locate any or if something doesn't appear to work as intended, please don't hesitate to contact me on Discord at (JacobMcAuley#3461). I will correct the issue and push it out as soon as possible.
 
 That being said here are all the known issues at the moment:
 
@@ -25,6 +31,70 @@ That being said here are all the known issues at the moment:
 ### It's a feature not a bug!
 
 1. Tokens moving through linear mode on a diagonal may take an unexpect route to reach the point. This is how the function currently works. Future updates will adjust this.
+
+### Features
+
+Here is a quick TLDR of the features available in Foundry Patrol.
+
+## Token Patrol Caret HUD
+
+Access all the token related information within the caret HUD menu. Every individual token related settings can be adjusted or changed here.
+
+![caretHud](imgs/examples/caretHUD.png)
+
+## General Settings Tab
+
+Clicking the above Caret will open the Settings Tab. From here you can make your token patroller speak, use vision features, and keep an Ambient Sound
+
+![patrolMenu](imgs/examples/Settings.png)
+
+## Quotes
+
+With this setting, Patrolling tokens can make mentions towards NPCs and PCs depending on the enabled settings.
+
+This mode requires that Token Vision is enabled, including setting the sight on the token itself, and the corresponding quotes settings enabled. This can be seen more in detail by using the module and reading the hints.
+
+# Quote Parsing
+
+If you'd like to add an additional layer of fun to your game, you can use the keyword **{token.name}** within your single quotes to substitute the first seen token within. See the image below!
+
+**Note:** The single quote ---> **'** is used as the delimiting factor in seeing quotes. So if you put a quote like 'This isn **'** t fair!' an error will be thrown, as the parser would break this into {'This isn', 't fair <--- ERROR NO ENDING}
+
+
+![patrolQuotes](imgs/examples/tokenQuotes.png)
+
+## Vision
+
+Token Vision adds some important features to the token patrol module. Using this option allows for tokens to use their existing vision (meaning you have to have set vision up within the FOUNDRY CORE vision) to interact with objects while on patrol.
+
+The options include
+1. Enable/Disable vision checking 
+2. Other Token Vision mode --> Used to check for NPCS
+3. Stop Patrol when Player is seen --> Does what it sounds like
+4. Create Combat when Player is seen --> Does what it sounds like
+5. Pause Game when Player is seen  --> Does what it sounds like.
+
+## Audio
+
+Token Audio allows for you to create trailing ambient sound on your token patrols! This can create the affects of footsteps, growling, talking, or even a marching band! 
+
+![ambientAudio](imgs/examples/ambientAudio.png)
+
+## Generate Macros
+
+By using the set hotkey in the module settings, highlighting the tokens you wish to use, you can create a macro that will automatically start (or stop if you adjust it) the patrols when press.
+
+This is super useful when used in combination with [Furnace's](https://github.com/kakaroto/fvtt-module-furnace) advance macro features, so that you can use [TriggerHappy](https://github.com/kakaroto/fvtt-module-trigger-happy) to call the macro under certain triggers!
+
+Perhaps your player tripped a tripwire and now the guards are on the way!
+
+
+## API Access
+API calling available: Namespaced under TP these are good for macros!
+1. TP.tokenPatroller.startPatrol(delay: string, tokenId: string)
+2. TP.tokenPatroller.stopPatrol(tokenId: string)
+3. TP.tokenPatroller.addPlotPoint(tokenId: string) // Takes the tokens current position as a point.
+
 
 ### Installation Instructions
 
@@ -47,13 +117,15 @@ Auto-Installation Instructions:
 2. Right click a token to view the tokenHUD.
 3. Refer to the following image for descriptions of icons.
 
-### Examples
+### Optional Token HUD examples
+
+This menu can be disabled with settings!
 
 ![example_picture1](imgs/examples/example1.png)
-![example_picture2](imgs/examples/example1.png)
+![example_picture2](imgs/examples/example2.png)
 
 Watch the video:
-[![Watch the video](https://img.youtube.com/vi/zR6ut3gglZ4/maxresdefault.jpg)](https://www.youtube.com/watch?v=zR6ut3gglZ4)
+[![Watch the video](https://img.youtube.com/vi/TVwJ2LL8zas/maxresdefault.jpg)](https://www.youtube.com/watch?v=TVwJ2LL8zas)
 
 ### Feedback
 

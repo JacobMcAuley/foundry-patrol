@@ -42,6 +42,15 @@
                     ><input type="checkbox" name="enableQuotes" {{{determineChecked enableQuotes}}} data-dtype="Boolean" />
                     <p class="notes">Enables quotes. With this option disabled, no quotes will be displayed.</p>
                 </li>
+                <li class="form-group">
+                    <label>Patrol Quote Percent Chance</label>
+                    <div class="form-fields">
+                        <input name="patrolPercent" class="image" type="number" min="0" max="100" data-dtype="Number" value="{{patrolPercent}}" />
+                    </div>
+
+                    <p class="notes">This is the percent chance of the patrol quotes playing at each stop.</p>
+                </li>
+
                 <li>
                     <label>Patrol Quotes</label>
                     <textarea
@@ -91,7 +100,6 @@
                         Instead of saying something when a player is seen, say something when a token that ISN'T controlled by a player is seen.
                     </p>
                 </li>
-
                 <li>
                     <label>Stop patrol when seen: </label
                     ><input type="checkbox" name="stopWhenSeen" {{{determineChecked stopWhenSeen}}} data-dtype="Boolean" />
@@ -121,6 +129,11 @@
                             <input class="imag" type="text" name="audioPath" placeholder="path/audio.mp3" value="{{audioPath}}" />
                         </div>
                     </div>
+                </li>
+                <li>
+                    <label>Local mode: </label
+                    ><input type="checkbox" name="audioLocal" {{{determineChecked audioLocal}}} data-dtype="Boolean" />
+                    <p class="notes">Enables local audio (Audio won't play through walls).</p>
                 </li>
                 <li class="form-group">
                     <label>Radius</label>
