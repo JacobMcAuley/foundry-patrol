@@ -3,6 +3,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
+
+## [2.0.3] - 2020-05-16
+
+### Added
+- Added a setting to pause tokens on combat start.
+
+### Bug Fixes:
+- Fixed an issue where the quote parser would try to parse an empty array
+- Fixed an issue where tokens would say "UNDEFINED" if no quote was given.
+
 ## [2.0.0] - 2020-05-16
 
 ### Added
