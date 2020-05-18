@@ -195,7 +195,7 @@ class TokenPatrollerManager {
         this.tokenMap = await TP.patrolDataManager.dataInit();
     }
 
-    addPlotPoint(tokenId) {
+    async addPlotPoint(tokenId) {
         let token = canvas.tokens.get(tokenId);
         let coord = {
             x: getProperty(token.data, "x"),
@@ -204,8 +204,8 @@ class TokenPatrollerManager {
         if (!coord) return;
         this.updateTokenRoute(tokenId, coord);
         this.livePlotUpdate(tokenId);
-        this.linearWalk(false, tokenId);
-        this.linearWalk(true, tokenId);
+        await this.linearWalk(false, tokenId);
+        await this.linearWalk(true, tokenId);
     }
 
     async startPatrol(delay = null, tokenId) {
@@ -223,7 +223,8 @@ class TokenPatrollerManager {
         try {
             while (patrolData.isWalking && this._validatePatrol(token)) {
                 await this._saveAndUpdate(this.tokenMap);
-                await this._navigationCycle(cycle, token);
+                let result = await this._navigationCycle(cycle, token);
+                if (result) return;
                 cycle = this.tokenMap[tokenId].inverted == false ? 1 : 0;
             }
             this._disableWalking(token);
@@ -239,7 +240,12 @@ class TokenPatrollerManager {
 
     async _navigationCycle(cycle, token) {
         let patrolData = this.tokenMap[token.id];
-        let patrolPoints = patrolData.isLinear ? patrolData.linearPath : patrolData.plots;
+        let patrolPoints = patrolData.plots;
+
+        if (patrolData.isLinear) {
+            if (patrolData.inverted) patrolPoints = patrolData.countinousRoutes;
+            else patrolPoints = patrolData.linearPath;
+        }
 
         let forceReturn;
         const settings = {
@@ -289,6 +295,7 @@ class TokenPatrollerManager {
         const sleep = (m) => new Promise((r) => setTimeout(r, m));
         if (patrolData.onInverseReturn == onReturn) {
             for (iterator; operation(iterator, comparison); iterator = iterator + increment) {
+                if (!patrolData.isWalking) return true;
                 let combatStarted = game.settings.get(TP.MODULENAME, "combatPause");
                 if (game.settings.get("foundry-patrol", "tokenRotation") || this.tokenMap[token.id].tokenRotation) {
                     //Rotation
@@ -450,7 +457,7 @@ class TokenPatrollerManager {
                 console.log("Unexpected direction");
     }
 
-    linearWalk(generateEnd, tokenId) {
+    async linearWalk(generateEnd, tokenId) {
         let plot = JSON.parse(JSON.stringify(this._getPlotsFromId(tokenId)));
         let len = plot.length - 1;
         if (generateEnd) {
@@ -458,36 +465,36 @@ class TokenPatrollerManager {
             let xMod = plot[ROUTE_START].x >= plot[len].x ? 1 : -1;
             let yMod = plot[ROUTE_START].y >= plot[len].y ? 1 : -1;
             this._getGeneral(tokenId, "endCountinousRoutes").length = 0;
-            this._generateLinearRoute(this._getGeneral(tokenId, "endCountinousRoutes"), plot[len], plot[ROUTE_START], xMod, yMod);
+            await this._generateLinearRoute(this._getGeneral(tokenId, "endCountinousRoutes"), plot[len], plot[ROUTE_START], xMod, yMod);
             this._generateLinearPath(tokenId);
         } else if (plot.length < 2) {
             this._getGeneral(tokenId, "countinousRoutes").push(plot[0]);
-            TP.tokenPatroller._saveAndUpdate(this.tokenMap);
+            await TP.tokenPatroller._saveAndUpdate(this.tokenMap);
         } else {
             let xMod = plot[len].x >= plot[len - 1].x ? 1 : -1;
             let yMod = plot[len].y >= plot[len - 1].y ? 1 : -1;
-            this._generateLinearRoute(this._getGeneral(tokenId, "countinousRoutes"), plot[len - 1], plot[len], xMod, yMod);
+            await this._generateLinearRoute(this._getGeneral(tokenId, "countinousRoutes"), plot[len - 1], plot[len], xMod, yMod);
         }
     }
 
-    _generateLinearRoute(route, src, dest, xMod, yMod) {
+    async _generateLinearRoute(route, src, dest, xMod, yMod) {
         const GRID_SIZE = canvas.grid.size;
         if (src.x == dest.x && src.y == dest.y) {
-            TP.tokenPatroller._saveAndUpdate(this.tokenMap);
+            await TP.tokenPatroller._saveAndUpdate(this.tokenMap);
             return true;
         } else if (src.x != dest.x && src.y != dest.y) {
             src.x += GRID_SIZE * xMod;
             src.y += GRID_SIZE * yMod;
             route.push({ x: src.x, y: src.y });
-            return this._generateLinearRoute(route, src, dest, xMod, yMod);
+            return await this._generateLinearRoute(route, src, dest, xMod, yMod);
         } else if (src.x == dest.x && src.y != dest.y) {
             src.y += GRID_SIZE * yMod;
             route.push({ x: src.x, y: src.y });
-            return this._generateLinearRoute(route, src, dest, xMod, yMod);
+            return await this._generateLinearRoute(route, src, dest, xMod, yMod);
         } else if (src.x != dest.x && src.y == dest.y) {
             src.x += GRID_SIZE * xMod;
             route.push({ x: src.x, y: src.y });
-            return this._generateLinearRoute(route, src, dest, xMod, yMod);
+            return await this._generateLinearRoute(route, src, dest, xMod, yMod);
         } else {
             if (this.debug) console.log("Foundry-Patrol: Error in generating Continuous route.");
         }
@@ -588,7 +595,7 @@ class TokenPatrollerManager {
         return this.tokenMap[tokenId];
     }
 
-    removeTokenRoute(tokenId, removeAll = false) {
+    async removeTokenRoute(tokenId, removeAll = false) {
         if (!this.tokenMap[tokenId]) return;
 
         this.tokenMap[tokenId].linearPath = [];
@@ -606,8 +613,8 @@ class TokenPatrollerManager {
             this.tokenMap[tokenId]["plots"].pop();
             this.tokenMap[tokenId].lastPos = 0;
             this.tokenMap[tokenId]["countinousRoutes"].length -= this._adjustLength(p1, p2);
-            this.linearWalk(false, tokenId);
-            this.linearWalk(true, tokenId);
+            await this.linearWalk(false, tokenId);
+            await this.linearWalk(true, tokenId);
         }
         TP.tokenPatroller._saveAndUpdate(this.tokenMap);
         this.livePlotUpdate(tokenId);
@@ -911,6 +918,11 @@ class TokenPatrollerManager {
             else this.tokenMap[tokenId][key] = formData[key];
         }
         this._saveAndUpdate(this.tokenMap);
+        this._releaseToken(tokenId);
+    }
+
+    _releaseToken(tokenId) {
+        canvas.tokens.get(tokenId).release();
     }
 
     _hasAudio(tokenId) {
