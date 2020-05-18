@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 
+
+## [2.0.7] - 2020-05-18
+
+### Bug fixes:
+- Fixed a bug where patrol quotes would always activate even if disabled
+- Fixed a bug where undo-last would throw an error
+- Fixed a bug where the linearPath wouldn't be deleted on clear
+- Fixed a bug where the linear/continuous path doesn't update on the HUD.
+
+### Changed:
+- Changed clear all routes from `CTRL-SHIFT-C` to `CTRL-SHIFT-D` as the former is too close to copy on the Window's workflow.
+
+
 ## [2.0.3] - 2020-05-16
 
 ### Added

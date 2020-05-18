@@ -8,7 +8,7 @@ Using this mod, you will be able to set up "Patrol Routes" which tokens will mov
 
 ### WARNING (READ)
 
-A lot of these features use calculations that may or may not be overwhelming to your computer. Please keep this in mind when using quotes/vision/audio with several tokens on one scene. 
+A lot of these features use calculations that may or may not be overwhelming to your computer. Please keep this in mind when using quotes/vision/audio with several tokens on one scene.
 
 If your computer is capable of handling all the weight, by all means, please go wild!
 
@@ -60,7 +60,6 @@ If you'd like to add an additional layer of fun to your game, you can use the ke
 
 **Note:** The single quote ---> **'** is used as the delimiting factor in seeing quotes. So if you put a quote like 'This isn **'** t fair!' an error will be thrown, as the parser would break this into {'This isn', 't fair <--- ERROR NO ENDING}
 
-
 ![patrolQuotes](imgs/examples/tokenQuotes.png)
 
 ## Vision
@@ -68,15 +67,16 @@ If you'd like to add an additional layer of fun to your game, you can use the ke
 Token Vision adds some important features to the token patrol module. Using this option allows for tokens to use their existing vision (meaning you have to have set vision up within the FOUNDRY CORE vision) to interact with objects while on patrol.
 
 The options include
-1. Enable/Disable vision checking 
+
+1. Enable/Disable vision checking
 2. Other Token Vision mode --> Used to check for NPCS
 3. Stop Patrol when Player is seen --> Does what it sounds like
 4. Create Combat when Player is seen --> Does what it sounds like
-5. Pause Game when Player is seen  --> Does what it sounds like.
+5. Pause Game when Player is seen --> Does what it sounds like.
 
 ## Audio
 
-Token Audio allows for you to create trailing ambient sound on your token patrols! This can create the affects of footsteps, growling, talking, or even a marching band! 
+Token Audio allows for you to create trailing ambient sound on your token patrols! This can create the affects of footsteps, growling, talking, or even a marching band!
 
 ![ambientAudio](imgs/examples/ambientAudio.png)
 
@@ -88,13 +88,13 @@ This is super useful when used in combination with [Furnace's](https://github.co
 
 Perhaps your player tripped a tripwire and now the guards are on the way!
 
-
 ## API Access
+
 API calling available: Namespaced under TP these are good for macros!
+
 1. TP.tokenPatroller.startPatrol(delay: string, tokenId: string)
 2. TP.tokenPatroller.stopPatrol(tokenId: string)
 3. TP.tokenPatroller.addPlotPoint(tokenId: string) // Takes the tokens current position as a point.
-
 
 ### Installation Instructions
 
@@ -140,7 +140,9 @@ Normal Walk found at: https://www.iconfinder.com/icons/2639849/chart_line_icon
 
 ### Special Thanks
 
-Super special thanks to Bazoop on discord! He was a willing participant to bad code.
+Super special thanks to Bazoop on discord! He was a willing participant to bad code. This special gratitude is also given to Cris
+#6864 on Discord. Their feedback on bugs and issues helped to refine Token Patrol.
+
 Special thanks to: Felix, Jasaplay, Moerill, Gen Kitty, Guaccamole, errational, and any others I missed for providing much needed feedback.
 
 # Donations

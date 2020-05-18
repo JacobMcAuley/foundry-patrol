@@ -82,7 +82,7 @@ TP["PATROLCONFIG"] = [
             name: "Clear Plots Hotkey",
             hint: "Enter a keybinding to clear a route.",
             type: window.Azzu.SettingsTypes.KeyBinding,
-            default: "Ctrl + Shift + C",
+            default: "Ctrl + Shift + D",
             scope: "client",
             config: true,
         },

@@ -590,6 +590,9 @@ class TokenPatrollerManager {
 
     removeTokenRoute(tokenId, removeAll = false) {
         if (!this.tokenMap[tokenId]) return;
+
+        this.tokenMap[tokenId].linearPath = [];
+
         if (removeAll) {
             this.tokenMap[tokenId].plots = [];
             this.tokenMap[tokenId].countinousRoutes = [];
@@ -928,7 +931,7 @@ class TokenHud {
         let delayPeriod = 2;
         if (patrolData) {
             isPatrolling = patrolData.isWalking;
-            isLinear = patrolData.linearMode;
+            isLinear = patrolData.isLinear;
             isInverted = patrolData.inverted;
             delayPeriod = await TP.tokenPatroller.getDelayPeriod(tokenId);
         }
@@ -1471,7 +1474,7 @@ class RoutesKeyLogger {
     }
 
     _clearAllRoutes() {
-        let tokens = canvas.tokens.controlledTokens.length > 0 && selectedToggle ? canvas.tokens.controlledTokens : canvas.tokens.ownedTokens;
+        let tokens = canvas.tokens.controlledTokens.length > 0 ? canvas.tokens.controlledTokens : canvas.tokens.ownedTokens;
         for (let i = 0; i < tokens.length; ++i) {
             TP.tokenPatroller.removeTokenRoute(tokens[i].id, true);
         }
@@ -1612,6 +1615,7 @@ class SpeechHandler {
     }
 
     async handleSpeech(tokenId, type, spottedTokens = []) {
+        if (!TP.tokenPatroller.getEnableQuotes(tokenId)) return;
         let messages;
         if (type === "patrol") {
             if (this._determineIfPatrolDisplay(tokenId)) messages = await TP.tokenPatroller.getPatrolQuotes(tokenId);
@@ -1685,16 +1689,6 @@ class AudioHandler {
         return TP.tokenPatroller._hasAudio(tokenId);
     }
 }
-
-Hooks.on("chatMessage", (chatLog, message, user) => {
-    if (!user.speaker.token) return true;
-    let messageModified = message.split(" ");
-    if (messageModified[0] == "/pt") {
-        TP.tokenPatroller.addPatrolMessage(getProperty(user, "speaker.token"), message.replace("/pt ", ""));
-        return false;
-    }
-    return true;
-});
 
 Handlebars.registerHelper("determineChecked", function (currentValue) {
     return currentValue ? 'checked="checked"' : "";
