@@ -50,7 +50,18 @@
 
                     <p class="notes">This is the percent chance of the patrol quotes playing at each stop.</p>
                 </li>
-
+                {{#if polygot}}
+                <li>
+                    <div class="polyglot-lang-select-patrol flexrow">
+                        <label>Language : </label>
+                        <select id="polyglot-patrol">
+                            {{#each lang}}
+                            <option value="{{lang}}" {{{determineSelected this ../tokenId}}}>{{this}}</option>
+                            {{/each}}
+                        </select>
+                    </div>
+                </li>
+                {{/if}}
                 <li>
                     <label>Patrol Quotes</label>
                     <textarea
@@ -58,8 +69,8 @@
                         data-dtype="String"
                         placeholder="'Place your quotes between single quotation marks!' 'Just like this!'"
                     >
-{{patrolQuotes}}</textarea
-                    >
+{{patrolQuotes}}
+                    </textarea>
                     <p class="notes">This will be quotes randomly spoken during patrols</p>
                 </li>
                 <li>
@@ -69,8 +80,8 @@
                         data-dtype="String"
                         placeholder="'Place your quotes between single quotation marks!' 'Just like this!'"
                     >
-{{catchQuotes}}</textarea
-                    >
+{{catchQuotes}}
+                    </textarea>
                     <p class="notes">This will be quotes spoken when a target is seen</p>
                 </li>
                 <li>
@@ -80,8 +91,8 @@
                         data-dtype="String"
                         placeholder="'This is for the above option!' 'You can use {token.name} literally to substitute a name' 'Howdy, {token.name}, how goes the patrol'"
                     >
-{{otherTokenVisionQuotes}}</textarea
-                    >
+{{otherTokenVisionQuotes}}
+                    </textarea>
                     <p class="notes">This will be quotes spoken when a target that is not the player is seen</p>
                 </li>
             </ul>
@@ -131,8 +142,7 @@
                     </div>
                 </li>
                 <li>
-                    <label>Local mode: </label
-                    ><input type="checkbox" name="audioLocal" {{{determineChecked audioLocal}}} data-dtype="Boolean" />
+                    <label>Local mode: </label><input type="checkbox" name="audioLocal" {{{determineChecked audioLocal}}} data-dtype="Boolean" />
                     <p class="notes">Enables local audio (Audio won't play through walls).</p>
                 </li>
                 <li class="form-group">

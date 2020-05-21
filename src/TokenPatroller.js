@@ -459,6 +459,9 @@ class TokenPatrollerManager {
 
     async linearWalk(generateEnd, tokenId) {
         let plot = JSON.parse(JSON.stringify(this._getPlotsFromId(tokenId)));
+
+        if (!plot) return;
+
         let len = plot.length - 1;
         if (generateEnd) {
             const ROUTE_START = 0;
@@ -477,21 +480,40 @@ class TokenPatrollerManager {
         }
     }
 
+    // [1------5]
+    // [1 = 5]
+    // [1,2,]
+    // [1,2,3,4,5]
+
     async _generateLinearRoute(route, src, dest, xMod, yMod) {
         const GRID_SIZE = canvas.grid.size;
+        if (src.x % GRID_SIZE != 0 && src.y % GRID_SIZE != 0 && dest.x % GRID_SIZE != 0 && dest.y % GRID_SIZE != 0) {
+            ui.notifications.error(
+                "There was a potentially game breaking error while generating token routes. Please open the console and send them to @JacobMcauley"
+            );
+            console.log(route);
+            console.log(src);
+            console.log(dest);
+            console.log(`XMOD: ${xMod}`);
+            console.log(`YMOD: ${yMod}`);
+            return;
+        }
         if (src.x == dest.x && src.y == dest.y) {
             await TP.tokenPatroller._saveAndUpdate(this.tokenMap);
             return true;
         } else if (src.x != dest.x && src.y != dest.y) {
+            //<-- Bad one 100,100 -> 102, 100
             src.x += GRID_SIZE * xMod;
             src.y += GRID_SIZE * yMod;
             route.push({ x: src.x, y: src.y });
             return await this._generateLinearRoute(route, src, dest, xMod, yMod);
         } else if (src.x == dest.x && src.y != dest.y) {
+            //<-- Bad one
             src.y += GRID_SIZE * yMod;
             route.push({ x: src.x, y: src.y });
             return await this._generateLinearRoute(route, src, dest, xMod, yMod);
         } else if (src.x != dest.x && src.y == dest.y) {
+            //<-- Bad one
             src.x += GRID_SIZE * xMod;
             route.push({ x: src.x, y: src.y });
             return await this._generateLinearRoute(route, src, dest, xMod, yMod);
@@ -550,6 +572,7 @@ class TokenPatrollerManager {
                 catchQuotes: [],
                 otherTokenVision: false,
                 otherTokenVisionQuotes: [],
+                language: "common",
             };
             this.tokenMap[tokenId]["plots"].push(updateData);
         }
@@ -590,6 +613,7 @@ class TokenPatrollerManager {
             catchQuotes: [],
             otherTokenVision: false,
             otherTokenVisionQuotes: [],
+            language: "common",
         };
         TP.tokenPatroller._saveAndUpdate(this.tokenMap);
         return this.tokenMap[tokenId];
@@ -831,6 +855,11 @@ class TokenPatrollerManager {
         TP.tokenPatroller._saveAndUpdate(this.tokenMap);
     }
 
+    getLanguage(tokenId) {
+        if (!this.tokenMap[tokenId]) return;
+        return this.tokenMap[tokenId].language;
+    }
+
     getAudioPath(tokenId) {
         if (!this.tokenMap[tokenId]) return;
         return this.tokenMap[tokenId].audioPath;
@@ -1063,6 +1092,7 @@ class PatrolMenu extends FormApplication {
     constructor(tokenId, ...args) {
         super(...args);
         this.tokenId = tokenId;
+        this.language = null;
         this.processedData = {};
     }
 
@@ -1080,6 +1110,32 @@ class PatrolMenu extends FormApplication {
     async getData() {
         let tokenData = TP.tokenPatroller.getTokenData(this.tokenId);
         const templateData = {
+            tokenId: this.tokenId,
+            polygot: game.modules.has("polyglot") ? game.modules.get("polyglot").active : false,
+            lang:
+                game.modules.has("polyglot") && game.modules.get("polyglot").active
+                    ? (() => {
+                          let actors = [];
+                          let known_languages = new Set();
+                          for (let token of [canvas.tokens.get(this.tokenId)]) {
+                              if (token.actor) actors.push(token.actor);
+                          }
+                          if (actors.length == 0 && game.user.character) actors.push(game.user.character);
+                          for (let actor of actors) {
+                              try {
+                                  // Don't duplicate the value in case it's a not an array
+                                  for (let lang of actor.data.data.traits.languages.value) known_languages.add(lang);
+                              } catch (err) {
+                                  // Maybe not dnd5e, pf1 or pf2e or corrupted actor data?
+                              }
+                          }
+                          if (known_languages.size == 0) {
+                              if (game.user.isGM) known_languages = new Set(Object.keys(PolyGlot.languages));
+                              else known_languages.add("common");
+                          }
+                          return known_languages;
+                      })()
+                    : "common",
             audioPath: tokenData.audioPath,
             audioLocal: tokenData.audioLocal,
             audioRadius: tokenData.audioRadius,
@@ -1122,8 +1178,11 @@ class PatrolMenu extends FormApplication {
 
     async _updateObject(event, formData) {
         //Handle Form Data
+        formData.language = this.language;
+
         this._handleDelete(formData);
         await this._processDelay(formData);
+        console.log(formData["polyglot-language"]);
         this._handleQuoteData(formData);
         await this._handleAudioData(formData);
         TP.tokenPatroller.updateFormRelatedData(formData, this.tokenId);
@@ -1200,6 +1259,13 @@ class PatrolMenu extends FormApplication {
         let currentTab = settingsButton;
         let currentBody = settings;
         super.activateListeners(html);
+
+        $("#polyglot-patrol").click((x, y, z) => {
+            let selectedLang = $("#polyglot-patrol option:selected").text();
+            if (!selectedLang) return;
+            this.language = selectedLang;
+        });
+
         $(".nav-tab").click(function () {
             currentBody.toggleClass("hide");
             currentTab.toggleClass("selected");
@@ -1613,6 +1679,18 @@ class SpeechHandler {
 
     async createChat(tokenId, message) {
         if (message == undefined) return;
+        /*
+        let tokenLanguage = TP.tokenPatroller.getLanguage(tokenId) || "common";
+        
+        */
+
+        let tokenLanguage = TP.tokenPatroller.getLanguage(tokenId) || "common";
+        let polyglotOld = ui.chat.element.find("select[name=polyglot-language]").val();
+
+        if (polyglotOld) ui.chat.element.find("select[name=polyglot-language]").val(tokenLanguage);
+
+        let polyglotInfo = { polyglot: { language: tokenLanguage, skip: true } };
+
         const token = canvas.tokens.get(tokenId);
         const speaker = ChatMessage.getSpeaker({ token: token });
         await ChatMessage.create(
@@ -1620,10 +1698,13 @@ class SpeechHandler {
                 speaker: speaker,
                 user: game.userId,
                 content: message,
-                type: CHAT_MESSAGE_TYPES.EMOTE,
+                type: CHAT_MESSAGE_TYPES.IC,
+                flags: polyglotInfo,
             },
             { chatBubble: true }
         );
+
+        if (polyglotOld) ui.chat.element.find("select[name=polyglot-language]").val(polyglotOld);
     }
 
     async handleSpeech(tokenId, type, spottedTokens = []) {
@@ -1704,6 +1785,10 @@ class AudioHandler {
 
 Handlebars.registerHelper("determineChecked", function (currentValue) {
     return currentValue ? 'checked="checked"' : "";
+});
+
+Handlebars.registerHelper("determineSelected", function (currentValue, tokenId) {
+    return currentValue == TP.tokenPatroller.getLanguage(tokenId) ? 'selected="selected"' : "";
 });
 
 TokenPatrollerInitalizer.initialize();

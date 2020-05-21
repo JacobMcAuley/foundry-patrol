@@ -3,6 +3,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
+
+## [2.1.1] - 2020-05-20
+### Added:
+- Added polyglot integration
+
+### Bug fixes:
+- Added a warning for when a possible error will occur during linear generation.
+
 ## [2.0.9] - 2020-05-20
 - Token line of sight is now respected.
 
