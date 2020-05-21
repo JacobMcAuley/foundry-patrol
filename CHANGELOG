@@ -3,6 +3,9 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
+## [2.0.9] - 2020-05-20
+- Token line of sight is now respected.
+
 ## [2.0.8] - 2020-05-18
 - Fixed a bug where swapping between forward-backwards and cycle mode would result in the token hopping around a lot.
 - Fixed a bug with linearmode not working with cycle mode
