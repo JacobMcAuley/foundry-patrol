@@ -8,6 +8,10 @@ Using this mod, you will be able to set up "Patrol Routes" which tokens will mov
 
 ### WARNING (READ)
 
+**Mod Incompatabilities:**
+1. Search Anywhere (A solution will be out soon!)
+2. Any module similar to above.
+
 A lot of these features use calculations that may or may not be overwhelming to your computer. Please keep this in mind when using quotes/vision/audio with several tokens on one scene.
 
 If your computer is capable of handling all the weight, by all means, please go wild!
