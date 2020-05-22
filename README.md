@@ -35,6 +35,7 @@ That being said here are all the known issues at the moment:
 ### It's a feature not a bug!
 
 1. Tokens moving through linear mode on a diagonal may take an unexpect route to reach the point. This is how the function currently works. Future updates will adjust this.
+2. Ungridded and hexagonal maps are prohibited from using linear(in between) node based pathing. Only square maps will allow for it.
 
 ### Features
 
