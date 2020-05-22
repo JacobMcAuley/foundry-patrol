@@ -242,7 +242,7 @@ class TokenPatrollerManager {
         let patrolData = this.tokenMap[token.id];
         let patrolPoints = patrolData.plots;
 
-        if (patrolData.isLinear) {
+        if (patrolData.isLinear && canvas.scene.data.gridType == CONST.GRID_TYPES.SQUARE) {
             if (patrolData.inverted) patrolPoints = patrolData.countinousRoutes;
             else patrolPoints = patrolData.linearPath;
         }
@@ -458,6 +458,8 @@ class TokenPatrollerManager {
     }
 
     async linearWalk(generateEnd, tokenId) {
+        if (canvas.scene.data.gridType != CONST.GRID_TYPES.SQUARE) return;
+
         let plot = JSON.parse(JSON.stringify(this._getPlotsFromId(tokenId)));
 
         if (!plot) return;
@@ -468,8 +470,8 @@ class TokenPatrollerManager {
             let xMod = plot[ROUTE_START].x >= plot[len].x ? 1 : -1;
             let yMod = plot[ROUTE_START].y >= plot[len].y ? 1 : -1;
             this._getGeneral(tokenId, "endCountinousRoutes").length = 0;
-            await this._generateLinearRoute(this._getGeneral(tokenId, "endCountinousRoutes"), plot[len], plot[ROUTE_START], xMod, yMod);
-            this._generateLinearPath(tokenId);
+            if (await this._generateLinearRoute(this._getGeneral(tokenId, "endCountinousRoutes"), plot[len], plot[ROUTE_START], xMod, yMod))
+                this._generateLinearPath(tokenId);
         } else if (plot.length < 2) {
             this._getGeneral(tokenId, "countinousRoutes").push(plot[0]);
             await TP.tokenPatroller._saveAndUpdate(this.tokenMap);
@@ -487,16 +489,15 @@ class TokenPatrollerManager {
 
     async _generateLinearRoute(route, src, dest, xMod, yMod) {
         const GRID_SIZE = canvas.grid.size;
+
         if (src.x % GRID_SIZE != 0 && src.y % GRID_SIZE != 0 && dest.x % GRID_SIZE != 0 && dest.y % GRID_SIZE != 0) {
-            ui.notifications.error(
-                "There was a potentially game breaking error while generating token routes. Please open the console and send them to @JacobMcauley"
-            );
+            ui.notifications.error("Can't process linear walk of the given coordinates. Please send console output to @JacobMcAuley on discord");
             console.log(route);
             console.log(src);
             console.log(dest);
             console.log(`XMOD: ${xMod}`);
             console.log(`YMOD: ${yMod}`);
-            return;
+            return false;
         }
         if (src.x == dest.x && src.y == dest.y) {
             await TP.tokenPatroller._saveAndUpdate(this.tokenMap);
@@ -1051,6 +1052,11 @@ class TokenHud {
 
             linearWalkHUD.click((ev) => {
                 let src = ev.target.getAttribute("src");
+
+                if (canvas.scene.data.gridType != CONST.GRID_TYPES.SQUARE) {
+                    ui.notifications.error("Linear path can only be used on square based maps.");
+                    return;
+                }
                 if (src == "modules/foundry-patrol/imgs/svg/linear.svg") {
                     ev.target.setAttribute("src", "modules/foundry-patrol/imgs/svg/line.svg");
                 } else {
@@ -1181,7 +1187,7 @@ class PatrolMenu extends FormApplication {
         formData.language = this.language;
 
         this._handleDelete(formData);
-        await this._processDelay(formData);
+        await this._processHUDSettings(formData);
         console.log(formData["polyglot-language"]);
         this._handleQuoteData(formData);
         await this._handleAudioData(formData);
@@ -1189,7 +1195,12 @@ class PatrolMenu extends FormApplication {
         return;
     }
 
-    async _processDelay(formData) {
+    async _processHUDSettings(formData) {
+        if (formData.isLinear && canvas.scene.data.gridType != CONST.GRID_TYPES.SQUARE) {
+            formData.isLinear = false;
+            ui.notifications.error("Linear path can only be used on square based maps, linear mode was disabled for you.");
+        }
+
         let delay = formData.delayPeriod.match(/"([^"]*)"/g).map((entry) => entry.slice(1, -1));
         if (!delay) {
             console.log("Error");
