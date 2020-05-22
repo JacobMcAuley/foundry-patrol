@@ -1614,20 +1614,20 @@ class VisionHandler {
         const guardToken = canvas.tokens.get(tokenId);
         const sightRadius = guardToken.dimRadius >= guardToken.brightRadius ? guardToken.dimRadius : guardToken.brightRadius;
 
-        this._handlePC(tokenId, guardToken.center, sightRadius, guardToken.data.sightAngle);
+        this._handlePC(tokenId, guardToken.center, sightRadius, guardToken.data.sightAngle, guardToken.data.rotation);
 
         if (TP.tokenPatroller.getOtherVisionChecking(tokenId) && TP.tokenPatroller.getEnableQuotes(tokenId))
-            this._handleNPC(tokenId, guardToken.center, sightRadius, guardToken.data.sightAngle);
+            this._handleNPC(tokenId, guardToken.center, sightRadius, guardToken.data.sightAngle, guardToken.data.rotation);
     }
 
-    async _handlePC(tokenId, guardTokenCenter, sightRadius, sightAngle) {
+    async _handlePC(tokenId, guardTokenCenter, sightRadius, sightAngle, guardRotation) {
         let playerTokens = await this._determinePCTokens(tokenId);
         let spottedTokens = [];
 
         for (let i = 0; i < playerTokens.length; ++i) {
             let playerToken = canvas.tokens.get(playerTokens[i]);
 
-            if (await this._checkVision(sightRadius, guardTokenCenter, playerToken.x, playerToken.y, sightAngle)) {
+            if (await this._checkVision(sightRadius, guardTokenCenter, playerToken.x, playerToken.y, sightAngle, guardRotation)) {
                 spottedTokens.push(playerToken);
                 if (TP.tokenPatroller.getStopWhenSeen(tokenId)) TP.tokenPatroller.stopPatrol(tokenId);
                 if (TP.tokenPatroller.getPauseGame(tokenId)) game.togglePause(true, true);
@@ -1644,21 +1644,21 @@ class VisionHandler {
         if (TP.tokenPatroller.getEnableQuotes(tokenId) && spottedTokens.length > 0) TP.speechHandler.handleSpeech(tokenId, "caught", spottedTokens);
     }
 
-    async _handleNPC(tokenId, guardTokenCenter, sightRadius, sightAngle) {
+    async _handleNPC(tokenId, guardTokenCenter, sightRadius, sightAngle, guardRotation) {
         let npcTokens = await this._determineNPCTokens(tokenId);
         let spottedTokens = [];
 
         for (let i = 0; i < npcTokens.length; ++i) {
             let npcToken = canvas.tokens.get(npcTokens[i]);
-            if (await this._checkVision(sightRadius, guardTokenCenter, npcToken.x, npcToken.y, sightAngle)) {
+            if (await this._checkVision(sightRadius, guardTokenCenter, npcToken.x, npcToken.y, sightAngle, guardRotation)) {
                 spottedTokens.push(npcToken);
             }
         }
         if (spottedTokens.length > 0) TP.speechHandler.handleSpeech(tokenId, "other", spottedTokens);
     }
 
-    async _checkVision(sight, center, x, y, sightAngle) {
-        const { los, fov } = SightLayer.computeSight(center, sight, { angle: sightAngle });
+    async _checkVision(sight, center, x, y, sightAngle, rotation) {
+        const { los, fov } = SightLayer.computeSight(center, sight, { angle: sightAngle, rotation: rotation });
         return fov.contains(x, y);
     }
 
