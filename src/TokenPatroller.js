@@ -1534,8 +1534,8 @@ class RoutesKeyLogger {
      * Provides interface into token for adding a plot.
      */
     _addPlotSelectedToken() {
-        for (let i = 0; i < canvas.tokens.controlledTokens.length; ++i) {
-            let token = canvas.tokens.controlledTokens[i];
+        for (let i = 0; i < canvas.tokens.controlled.length; ++i) {
+            let token = canvas.tokens.controlled[i];
             TP.tokenPatroller.addPlotPoint(token.id);
         }
     }
@@ -1547,7 +1547,7 @@ class RoutesKeyLogger {
      */
 
     _haltAllRoutes() {
-        let tokens = canvas.tokens.controlledTokens.length > 0 ? canvas.tokens.controlledTokens : canvas.tokens.ownedTokens;
+        let tokens = canvas.tokens.controlled.length > 0 ? canvas.tokens.controlled : canvas.tokens.ownedTokens;
         for (let i = 0; i < tokens.length; ++i) {
             TP.tokenPatroller._disableWalking(tokens[i]);
         }
@@ -1555,7 +1555,7 @@ class RoutesKeyLogger {
     }
 
     _startAllRoutes() {
-        let tokens = canvas.tokens.controlledTokens.length > 0 ? canvas.tokens.controlledTokens : canvas.tokens.ownedTokens;
+        let tokens = canvas.tokens.controlled.length > 0 ? canvas.tokens.controlled : canvas.tokens.ownedTokens;
         for (let i = 0; i < tokens.length; ++i) {
             TP.tokenPatroller.startPatrol(undefined, tokens[i].id);
         }
@@ -1563,7 +1563,7 @@ class RoutesKeyLogger {
     }
 
     _clearAllRoutes() {
-        let tokens = canvas.tokens.controlledTokens.length > 0 ? canvas.tokens.controlledTokens : canvas.tokens.ownedTokens;
+        let tokens = canvas.tokens.controlled.length > 0 ? canvas.tokens.controlled : canvas.tokens.ownedTokens;
         for (let i = 0; i < tokens.length; ++i) {
             TP.tokenPatroller.removeTokenRoute(tokens[i].id, true);
         }
@@ -1577,7 +1577,7 @@ class RoutesKeyLogger {
 
     async _generateMacro() {
         let tokenIds = [];
-        let selectedTokens = canvas.tokens.controlledTokens; // While less efficient, prevents accidental misclicks resulting in an empty array.
+        let selectedTokens = canvas.tokens.controlled; // While less efficient, prevents accidental misclicks resulting in an empty array.
         for (let i = 0; i < selectedTokens.length; ++i) {
             tokenIds.push('"' + selectedTokens[i].id + '"');
         }

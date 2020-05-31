@@ -6,7 +6,7 @@
     const SETTINGS_EXTENDER_VERSION = {
         major: 1,
         minor: 1,
-        patch: 1,
+        patch: 3,
     };
 
     window.Azzu = window.Azzu || {};
@@ -20,13 +20,16 @@
      */
     class Compatibility {
         /**
-         * Compatibility for <0.5.3
+         * Compatibility for getting the modules list from SettingsConfig
          *
          * @param data SettingsConfig.getData() object
          * @returns data.settings.modules or data.modules
          */
         static getSettingsConfigModules(data) {
-            return data.settings && data.settings.modules ? data.settings.modules : data.modules;
+            const below_0_5_3 = data.settings && data.settings.modules;
+            const between_0_5_3_and_0_6_0 = data.modules;
+            const above_0_6_1 = data.data && data.data.modules;
+            return above_0_6_1 || between_0_5_3_and_0_6_0 || below_0_5_3;
         }
 
         /**
