@@ -56,12 +56,9 @@ class TokenPatrollerInitalizer {
             if (controlled) {
                 TP.tokenPatroller.livePlotUpdate(tokenId);
             } else {
-                let GLOBAL_ROUTES_INDEX = canvas.layers.findIndex(function (element) {
-                    return element.constructor.name == "RoutesLayer";
-                });
                 TP.tokenPatroller._removePlotDrawing(tokenId);
-                canvas.layers[GLOBAL_ROUTES_INDEX].deactivate();
-                canvas.layers[GLOBAL_ROUTES_INDEX].draw();
+                canvas.getLayer("RoutesLayer").deactivate();
+                canvas.getLayer("RoutesLayer").draw();
             }
         });
     }
@@ -166,9 +163,6 @@ class PatrolDataManager {
 class TokenPatrollerManager {
     constructor() {
         this.tokenMap;
-        this.GLOBAL_ROUTES_INDEX = canvas.layers.findIndex(function (element) {
-            return element.constructor.name == "RoutesLayer";
-        });
         this.debug = true;
     }
 
@@ -715,9 +709,9 @@ class TokenPatrollerManager {
     livePlotUpdate(tokenId) {
         if (!this.tokenMap[tokenId]) return;
         this._removePlotDrawing(tokenId);
-        canvas.layers[this.GLOBAL_ROUTES_INDEX].deactivate();
+        canvas.getLayer("RoutesLayer").deactivate();
         this._displayPlot(tokenId, this.tokenMap[tokenId].inverted);
-        canvas.layers[this.GLOBAL_ROUTES_INDEX].draw();
+        canvas.getLayer("RoutesLayer").draw();
     }
 
     _removePlotDrawing(tokenId) {
