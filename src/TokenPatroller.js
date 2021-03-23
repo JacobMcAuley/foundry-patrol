@@ -9,6 +9,14 @@ class TokenPatrollerInitalizer {
         TokenPatrollerInitalizer.hooksDeleteToken();
         TokenPatrollerInitalizer.hooksPreDeleteAmbientSounds();
         //TokenPatrollerInitalizer.hooksPreUpdateScene();
+        let theLayers = Canvas.layers;
+        theLayers.terrain = RoutesLayer;
+
+        Object.defineProperty(Canvas, 'layers', {
+            get: function () {
+                return theLayers
+            }
+        })
     }
 
     static hooksOnCanvasInit() {
