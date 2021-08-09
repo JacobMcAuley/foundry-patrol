@@ -38,10 +38,10 @@ class TokenPatrollerInitializer {
     static hooksOnReady() {
         Hooks.on("ready", async () => {
             if (!game.user.isGM) {
-                //libWrapper.register(TP.MODULENAME, "Token.prototype.animateMovement", _patrolAnimateMovement, "OVERRIDE");
+                libWrapper.register(TP.MODULENAME, "Token.prototype.animateMovement", _patrolAnimateMovement, "OVERRIDE");
                 return;
             }
-            //libWrapper.register(TP.MODULENAME, "Token.prototype.animateMovement", _patrolAnimateMovement, "OVERRIDE");
+            libWrapper.register(TP.MODULENAME, "Token.prototype.animateMovement", _patrolAnimateMovement, "OVERRIDE");
             canvas.stage.addChild(new RoutesLayer());
             TokenPatrollerInitializer._registerSettings();
             TP.patrolDataManager = new PatrolDataManager();
@@ -278,7 +278,8 @@ class TokenPatrollerManager {
                     (!combatSetting || !(combatSetting && combatStarted)) &&
                     !this._wasTokenMoved(token) &&
                     this._validatePatrol(token) &&
-                    !patrolData.isDeleted
+                    !patrolData.isDeleted &&
+                    !token._controlled
                 ) {
                     await this._navigateToNextPoint(patrolPoints[iterator], token);
                     await this._ensureAnimationCompletion(token);
@@ -674,7 +675,7 @@ class TokenPatrollerManager {
         });
         if (plotIndex != -1) {
             routes.splice(plotIndex, 1);
-            canvas.scene.setFlag(TP.MODULENAME, "routes", routes);
+            //canvas.scene.setFlag(TP.MODULENAME, "routes", routes);
         }
     }
 
@@ -696,7 +697,7 @@ class TokenPatrollerManager {
                 tokenId: tokenId,
             });
             routes.push(drawnPlot);
-            //await canvas.scene.setFlag(TP.MODULENAME, "routes", routes);
+           // await canvas.scene.setFlag(TP.MODULENAME, "routes", routes);
         }
     }
 
@@ -1277,7 +1278,7 @@ class PatrolMenu extends FormApplication {
             tokenId: this.tokenId,
             polygot: game.modules.has("polyglot") ? game.modules.get("polyglot").active : false,
             lang:
-                game.modules.has("polyglot") && game.modules.get("polyglot").active
+                /*game.modules.has("polyglot") && game.modules.get("polyglot").active
                     ? (() => {
                         let actors = [];
                         let known_languages = new Set();
@@ -1294,12 +1295,12 @@ class PatrolMenu extends FormApplication {
                             }
                         }
                         if (known_languages.size == 0) {
-                            if (game.user.isGM) known_languages = new Set(Object.keys(PolyGlot.languages));
-                            else known_languages.add("common");
+                            known_languages.add("common");
                         }
                         return known_languages;
                     })()
-                    : "common",
+                    :*/ "common",
+            audioId: tokenData.audioId,
             audioPath: tokenData.audioPath,
             audioLocal: tokenData.audioLocal,
             audioRadius: tokenData.audioRadius,
@@ -1404,11 +1405,9 @@ class PatrolMenu extends FormApplication {
         } else if (TP.audioHandler.hasAudio(this.tokenId) || audioPath.length == 0 || !audioRadius || !audioVolume) return;
 
         //
-
         formData["audioId"] = (
             await TP.audioHandler.createPatrolAudio(this.tokenId, formData.audioPath, audioLocal, formData.audioRadius, formData.audioVolume)
-        ).id;
-
+        )[0].id;
         formData.audioPath;
         formData.audioRadius;
         formData.audioVolume;
@@ -1528,7 +1527,6 @@ class VisionHandler {
 
     async _checkVision(sight, center, x, y, sightAngle, rotation) {
         const { los, fov } = SightLayer.computeSight(center, sight, { angle: sightAngle, rotation: rotation });
-        console.log(fov);
         return fov.contains(x, y);
     }
 
@@ -1624,7 +1622,7 @@ class AudioHandler {
         const halfGrid = canvas.grid.size / 2;
         const token = canvas.tokens.get(tokenId);
         try {
-            return await AmbientSound.create({
+            let createdSound =  await canvas.scene.createEmbeddedDocuments('AmbientSound', [{
                 type: audioLocal ? "l" : "g",
                 x: token.x + halfGrid,
                 y: token.y + halfGrid,
@@ -1634,9 +1632,10 @@ class AudioHandler {
                 repeat: true,
                 volume: AudioHelper.inputToVolume(volume),
                 flags: { tokenId: tokenId },
-            });
-        } catch {
-            console.log("Error in creating audio");
+            }]);
+            return createdSound;
+        } catch(e) {
+            console.log(e);
         }
     }
 
@@ -1644,13 +1643,15 @@ class AudioHandler {
         const halfGrid = canvas.grid.size / 2;
         let sound = canvas.sounds.placeables.filter((entry) => entry.id == ambientSoundId);
         if (!sound) return;
-        await sound[0].update({ x: x + halfGrid, y: y + halfGrid });
+        await canvas.scene.updateEmbeddedDocuments('AmbientSound',[{_id: sound[0].id , x: x + halfGrid, y: y + halfGrid}]);
+       // await sound[0].update({ x: x + halfGrid, y: y + halfGrid });
     }
 
     async updateAudioInfo(ambientSoundId, file, audioLocal, radius, volume) {
         let sound = canvas.sounds.placeables.filter((entry) => entry.id == ambientSoundId);
         if (!sound) return;
-        await sound[0].update({ path: file, type: audioLocal ? "l" : "g", radius: radius, volume: AudioHelper.inputToVolume(volume) });
+        await canvas.scene.updateEmbeddedDocuments('AmbientSound',[{_id: sound[0].id, path: file, type: audioLocal ? "l" : "g", radius: radius, volume: AudioHelper.inputToVolume(volume)}]);
+        //await sound[0].update({ path: file, type: audioLocal ? "l" : "g", radius: radius, volume: AudioHelper.inputToVolume(volume) });
     }
 
     hasAudio(tokenId) {
@@ -1668,3 +1669,45 @@ Handlebars.registerHelper("determineSelected", function (currentValue, tokenId) 
 });
 
 TokenPatrollerInitializer.initialize();
+
+async function _patrolAnimateMovement(ray) {
+    // Move distance is 10 spaces per second
+    const s = canvas.dimensions.size;
+    this._movement = ray;
+    const speed = s * 10;
+    let animSpeed;
+    animSpeed = 2500;
+    let isPathPatrolling = this.document.getFlag(TP.MODULENAME, "makePatroller");
+
+    const duration = isPathPatrolling && !this._controlled ? animSpeed : (ray.distance * 1000) / speed;
+  
+    // Define attributes
+    const attributes = [
+      { parent: this, attribute: 'x', to: ray.B.x },
+      { parent: this, attribute: 'y', to: ray.B.y }
+    ];
+  
+    // Determine what type of updates should be animated
+    const emits = this.emitsLight;
+    const config = {
+      animate: game.settings.get("core", "visionAnimation"),
+      source: this._isVisionSource() || emits,
+      sound: this._controlled || this.observer,
+      fog: emits && !this._controlled && (canvas.sight.sources.size > 0)
+    }
+  
+    // Dispatch the animation function
+    let animationName = `Token.${this.id}.animateMovement`;
+    await CanvasAnimation.animateLinear(attributes, {
+      name: animationName,
+      context: this,
+      duration: duration,
+      ontick: (dt, anim) => this._onMovementFrame(dt, anim, config)
+    });
+  
+    // Once animation is complete perform a final refresh
+    if ( !config.animate ) this._animatePerceptionFrame({source: config.source, sound: config.sound});
+    this._movement = null;
+  }
+  
+  
