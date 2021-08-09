@@ -38,10 +38,10 @@ class TokenPatrollerInitializer {
     static hooksOnReady() {
         Hooks.on("ready", async () => {
             if (!game.user.isGM) {
-                libWrapper.register(TP.MODULENAME, "Token.prototype.animateMovement", _patrolAnimateMovement, "OVERRIDE");
+                //libWrapper.register(TP.MODULENAME, "Token.prototype.animateMovement", _patrolAnimateMovement, "OVERRIDE");
                 return;
             }
-            libWrapper.register(TP.MODULENAME, "Token.prototype.animateMovement", _patrolAnimateMovement, "OVERRIDE");
+            //libWrapper.register(TP.MODULENAME, "Token.prototype.animateMovement", _patrolAnimateMovement, "OVERRIDE");
             canvas.stage.addChild(new RoutesLayer());
             TokenPatrollerInitializer._registerSettings();
             TP.patrolDataManager = new PatrolDataManager();
@@ -335,7 +335,7 @@ class TokenPatrollerManager {
 
             this._updatelastRecordedLocation(plot, token);
         } catch (error) {
-            if (this.debug) console.log(`better-path-patrol: Error in token navigation\n${error}`);
+            if (this.debug) console.log(`foundry-patrol: Error in token navigation\n${error}`);
         }
     }
 
@@ -400,7 +400,7 @@ class TokenPatrollerManager {
                 delay[delay.length] = parseInt(csvValue);
             });
         }
-        if (this.debug) console.log(`better-path-patrol: Wait periods include: ${delay}`);
+        if (this.debug) console.log(`foundry-patrol: Wait periods include: ${delay}`);
         return delay;
     }
 
@@ -466,7 +466,7 @@ class TokenPatrollerManager {
             route.push({ x: src.x, y: src.y });
             return await this._generateLinearRoute(route, src, dest, xMod, yMod);
         } else {
-            if (this.debug) console.log("better-path-patrol: Error in generating Continuous route.");
+            if (this.debug) console.log("foundry-patrol: Error in generating Continuous route.");
         }
     }
 
@@ -629,11 +629,11 @@ class TokenPatrollerManager {
                 three: {
                     icon: '<i class="fas fa-times"></i>',
                     label: "Reject: I do not want to delete",
-                    callback: () => console.log("better-path-patrol: Mind changed, nothing deleted"),
+                    callback: () => console.log("foundry-patrol: Mind changed, nothing deleted"),
                 },
             },
             default: "Ack",
-            close: () => console.log("better-path-patrol: Prompt Closed"),
+            close: () => console.log("foundry-patrol: Prompt Closed"),
         });
         deletePrompt.render(true);
     }
@@ -748,7 +748,7 @@ class TokenPatrollerManager {
             }
             return false;
         } catch (error) {
-            if (this.debug) console.log(`better-path-patrol: Error in validating patrol status -> \n ${error}`);
+            if (this.debug) console.log(`foundry-patrol: Error in validating patrol status -> \n ${error}`);
             return true;
         }
     }
@@ -927,7 +927,7 @@ class PatrolDataManager {
         let folder = await Folder.create(
             {
                 color: "",
-                name: "better-path-patrol",
+                name: "foundry-patrol",
                 parent: null,
                 sort: 100000,
                 type: "JournalEntry",
@@ -943,7 +943,7 @@ class PatrolDataManager {
     }
 
     async _checkIfFolderNameExists() {
-        return (await game.folders.contents.filter((entry) => entry.data.name == "better-path-patrol").length) > 0;
+        return (await game.folders.contents.filter((entry) => entry.data.name == "foundry-patrol").length) > 0;
     }
 
     async _getPatrolDataFile() {
@@ -957,9 +957,9 @@ class PatrolDataManager {
     }
 
     async _getFolder() {
-        let folder = await game.folders.contents.filter((entry) => entry.data.name == "better-path-patrol");
+        let folder = await game.folders.contents.filter((entry) => entry.data.name == "foundry-patrol");
         if (folder.length > 1 || folder.length < 0) {
-            ui.notifications.error("Critical failure in finding patrol database. More than one folder named better-path-patrol exists");
+            ui.notifications.error("Critical failure in finding patrol database. More than one folder named foundry-patrol exists");
             return false;
         }
         return folder[0];
@@ -1143,7 +1143,7 @@ class TokenHud {
 
         const addPlotPoint = $(`
             <div class="control-icon" style="margin-left: 4px;"> \ 
-                <img src="modules/better-path-patrol/imgs/svg/map.svg" width="36" height="36" title="Add Point"> \
+                <img src="modules/foundry-patrol/imgs/svg/map.svg" width="36" height="36" title="Add Point"> \
             </div>
         `);
 
@@ -1164,14 +1164,14 @@ class TokenHud {
 
         let linearWalkHUD = $(`
             <div class="control-icon" style="margin-left: 4px;"> \ 
-                <img id="linearHUD" src="modules/better-path-patrol/imgs/svg/line.svg" width="36" height="36" title="Linear Walk"> \
+                <img id="linearHUD" src="modules/foundry-patrol/imgs/svg/line.svg" width="36" height="36" title="Linear Walk"> \
             </div>
         `);
 
         if (isLinear) {
             linearWalkHUD = $(`
                 <div class="lineWalk control-icon" style="margin-left: 4px;"> \ 
-                    <img id="linearHUD" src="modules/better-path-patrol/imgs/svg/linear.svg" width="36" height="36" title="Plot Walk"> \
+                    <img id="linearHUD" src="modules/foundry-patrol/imgs/svg/linear.svg" width="36" height="36" title="Plot Walk"> \
                 </div>
             `);
         }
@@ -1186,7 +1186,7 @@ class TokenHud {
             `<input class="control-icon"  style="margin-left: 4px;" type="text" id="patrolWait" value=${delayPeriod} name="patrolWait" title="Delay period">`
         );
 
-        if (game.user.isGM || game.settings.get("better-path-patrol", "enablePlayerPatrol")) {
+        if (game.user.isGM || game.settings.get("foundry-patrol", "enablePlayerPatrol")) {
 
             html.find(".left").append(plotDiv);
             html.find(".plotDiv").append(addPlotPoint);
@@ -1215,10 +1215,10 @@ class TokenHud {
                     ui.notifications.error("Linear path can only be used on square based maps.");
                     return;
                 }
-                if (src == "modules/better-path-patrol/imgs/svg/linear.svg") {
-                    ev.target.setAttribute("src", "modules/better-path-patrol/imgs/svg/line.svg");
+                if (src == "modules/foundry-patrol/imgs/svg/linear.svg") {
+                    ev.target.setAttribute("src", "modules/foundry-patrol/imgs/svg/line.svg");
                 } else {
-                    ev.target.setAttribute("src", "modules/better-path-patrol/imgs/svg/linear.svg");
+                    ev.target.setAttribute("src", "modules/foundry-patrol/imgs/svg/linear.svg");
                 }
                 if (patrolData) TP.tokenPatroller._setLinear(tokenId);
             });
@@ -1262,7 +1262,7 @@ class PatrolMenu extends FormApplication {
 
     static get defaultOptions() {
         const options = super.defaultOptions;
-        options.template = "modules/better-path-patrol/scripts/patrol_menu.html";
+        options.template = "modules/foundry-patrol/templates/patrol_menu.html";
         options.width = 600;
         options.height = "auto";
         options.title = "Patrol Menu Options";
