@@ -1,14 +1,16 @@
-class TokenPatrollerInitalizer {
-    constructor() {}
+class TokenPatrollerInitializer {
+    constructor() { }
 
     static initialize() {
-        TokenPatrollerInitalizer.hooksOnCanvasInit();
-        TokenPatrollerInitalizer.hooksOnReady();
-        TokenPatrollerInitalizer.hooksRenderTokenHUD();
-        TokenPatrollerInitalizer.hooksControlToken();
-        TokenPatrollerInitalizer.hooksDeleteToken();
-        TokenPatrollerInitalizer.hooksPreDeleteAmbientSounds();
-        //TokenPatrollerInitalizer.hooksPreUpdateScene();
+        TokenPatrollerInitializer.hooksOnCanvasInit();
+        TokenPatrollerInitializer.hooksOnReady();
+        TokenPatrollerInitializer.hooksRenderTokenHUD();
+        TokenPatrollerInitializer.hooksControlToken();
+        TokenPatrollerInitializer.hooksDeleteToken();
+        TokenPatrollerInitializer.hooksPreDeleteAmbientSounds();
+        TokenPatrollerInitializer.hooksPreUpdateScene();
+        TokenPatrollerInitializer.hooksRenderToken();
+        TokenPatrollerInitializer.hooksUpdateToken();
         let theLayers = Canvas.layers;
         theLayers.terrain = RoutesLayer;
 
@@ -22,22 +24,28 @@ class TokenPatrollerInitalizer {
     static hooksOnCanvasInit() {
         Hooks.on("canvasInit", () => {
             if (!game.user.isGM) return;
-            let flags = canvas.scene.data.flags;
-            if (flags.routes == null) {
-                flags.routes = [];
-                canvas.scene.update({ flags: flags });
+            let routes = canvas.scene.getFlag(TP.MODULENAME, "routes");
+            console.log("better path flags: ");
+            console.log(routes);
+            if (routes == undefined) {
+                console.log("no better path flags found, setting better path flags...");
+                routes = [];
+                canvas.scene.setFlag(TP.MODULENAME, "routes", routes);
             }
         });
     }
 
     static hooksOnReady() {
         Hooks.on("ready", async () => {
-            if (!game.user.isGM) return;
+            if (!game.user.isGM) {
+                libWrapper.register(TP.MODULENAME, "Token.prototype.animateMovement", _patrolAnimateMovement, "OVERRIDE");
+                return;
+            }
+            libWrapper.register(TP.MODULENAME, "Token.prototype.animateMovement", _patrolAnimateMovement, "OVERRIDE");
             canvas.stage.addChild(new RoutesLayer());
-            TokenPatrollerInitalizer._registerSettings();
+            TokenPatrollerInitializer._registerSettings();
             TP.patrolDataManager = new PatrolDataManager();
             TP.tokenPatroller = await TokenPatrollerManager.create();
-            TP.routeLogger = new RoutesKeyLogger();
             TP.visionHandler = new VisionHandler();
             TP.audioHandler = new AudioHandler();
             TP.speechHandler = new SpeechHandler();
@@ -52,7 +60,15 @@ class TokenPatrollerInitalizer {
 
     static hooksRenderTokenHUD() {
         Hooks.on("renderTokenHUD", (tokenHUD, html, options) => {
-            if (!game.user.isGM) return;
+            let isPathPatroller;
+            if (options.flags.hasOwnProperty(TP.MODULENAME)) {
+                isPathPatroller = options.flags[TP.MODULENAME].makePatroller;
+            }
+            else {
+                isPathPatroller = false;
+            }
+
+            if (!game.user.isGM || !isPathPatroller) return;
             TokenHud.HUD(tokenHUD.object, html, options);
         });
     }
@@ -64,25 +80,46 @@ class TokenPatrollerInitalizer {
             if (controlled) {
                 TP.tokenPatroller.livePlotUpdate(tokenId);
             } else {
-                let GLOBAL_ROUTES_INDEX = canvas.layers.findIndex(function (element) {
-                    return element.constructor.name == "RoutesLayer";
-                });
                 TP.tokenPatroller._removePlotDrawing(tokenId);
-                canvas.layers[GLOBAL_ROUTES_INDEX].deactivate();
-                canvas.layers[GLOBAL_ROUTES_INDEX].draw();
+                canvas.getLayer("RoutesLayer").deactivate();
+                canvas.getLayer("RoutesLayer").draw();
             }
         });
     }
 
     static hooksDeleteToken() {
-        Hooks.on("deleteToken", (scene, tokenInfo) => {
-            TP.tokenPatroller.deleteToken(tokenInfo._id);
+        Hooks.on("deleteToken", (tokenDocument) => {
+            TP.tokenPatroller.deleteToken(tokenDocument.data._id);
         });
     }
 
     static hooksPreDeleteAmbientSounds() {
-        Hooks.on("preDeleteAmbientSound", (scene, ambientSound, flags, sceneId) => {
-            TP.tokenPatroller.deleteAmbientSound(ambientSound.flags.tokenId);
+        Hooks.on("preDeleteAmbientSound", (ambientSound) => {
+            console.log(ambientSound);
+            TP.tokenPatroller.deleteAmbientSound(ambientSound.data.flags.tokenId);
+        });
+    }
+
+    static hooksUpdateToken() {
+
+        Hooks.on("updateToken", async (tokend, updates) => {
+            if (game.user.isGM && !tokend.getFlag(TP.MODULENAME, "makePatroller")) {
+                TP.tokenPatroller._disableWalking(canvas.tokens.get(tokend.id));
+            }
+        });
+    }
+    static hooksRenderToken() {
+        Hooks.on("renderTokenConfig", (app, html, data) => {
+            if (!game.user.isGM) return;
+            let toggleHTML = `<div class="form-group">
+            <label>${game.i18n.localize("patrol.tokenConfig.makePatroller.name")}</label>
+            <input type="checkbox" name="flags.${TP.MODULENAME}.makePatroller" data-dtype="Boolean">
+          </div>`;
+            const lockrotation = html.find("input[name='lockRotation']");
+            const formGroup = lockrotation.closest(".form-group");
+            formGroup.after(toggleHTML);
+            html.find(`input[name ='flags.${TP.MODULENAME}.makePatroller']`)[0].checked =
+                app.object.getFlag(TP.MODULENAME, "makePatroller") || false;
         });
     }
 
@@ -90,93 +127,13 @@ class TokenPatrollerInitalizer {
         TP.PATROLCONFIG.forEach((setting) => {
             game.settings.register(TP.MODULENAME, setting.key, setting.settings);
         });
-    }
-}
-
-class PatrolDataManager {
-    constructor() {}
-
-    async dataInit() {
-        await this.createFileStructure();
-        let dataFile = await this._getPatrolDataFile();
-        if (!dataFile) return;
-        if (this._checkIfDataExists(dataFile)) return await this.getMap();
-        else await this.saveMap({});
-        return await this.getMap();
-    }
-
-    async createFileStructure() {
-        if (await this._checkIfFolderNameExists())
-            // Validation
-            return;
-        let folder = await Folder.create(
-            {
-                color: "",
-                name: "Foundry-Patrol",
-                parent: null,
-                nullsort: 100000,
-                type: "JournalEntry",
-            },
-            { temporary: false }
-        );
-        await JournalEntry.create({
-            folder: folder.id,
-            name: "Patrols",
-            type: "base",
-            types: "base",
-        });
-    }
-
-    async _checkIfFolderNameExists() {
-        return (await Folder.collection.entities.filter((entry) => entry.data.name == "Foundry-Patrol").length) > 0;
-    }
-
-    async _getPatrolDataFile() {
-        const folderId = (await this._getFolder()).id;
-        const tokenM = await JournalEntry.collection.filter((entry) => entry.data.name === "Patrols" && entry.data.folder == folderId);
-        if (tokenM.length > 1 || tokenM.length < 0) {
-            ui.notifications.error("Critical Failure: Multiple Patrol files");
-            return false;
-        }
-        return tokenM[0];
-    }
-
-    async _getFolder() {
-        let folder = await Folder.collection.entities.filter((entry) => entry.data.name == "Foundry-Patrol");
-        if (folder.length > 1 || folder.length < 0) {
-            ui.notifications.error("Critical failure in finding patrol database. More than one folder named Foundry-Patrol exists");
-            return false;
-        }
-        return folder[0];
-    }
-
-    _checkIfDataExists(dataFile) {
-        const content = getProperty(dataFile, "data.content");
-        if (!content) return false;
-        return content.length > 0;
-    }
-
-    async getMap() {
-        let dataFile = await this._getPatrolDataFile();
-        return JSON.parse(dataFile.data.content);
-    }
-
-    async saveMap(data) {
-        let folderId = (await this._getFolder()).id;
-        let dataFile = await this._getPatrolDataFile();
-        return await dataFile.update({
-            content: JSON.stringify(data),
-            folder: folderId,
-        });
+        
     }
 }
 
 class TokenPatrollerManager {
     constructor() {
         this.tokenMap;
-        this.GLOBAL_ROUTES_INDEX = canvas.layers.findIndex(function (element) {
-            return element.constructor.name == "RoutesLayer";
-        });
         this.debug = true;
     }
 
@@ -304,23 +261,21 @@ class TokenPatrollerManager {
         if (patrolData.onInverseReturn == onReturn) {
             for (iterator; operation(iterator, comparison); iterator = iterator + increment) {
                 if (!patrolData.isWalking) return true;
-                let combatStarted = game.settings.get(TP.MODULENAME, "combatPause");
-                if (game.settings.get("foundry-patrol", "tokenRotation") || this.tokenMap[token.id].tokenRotation) {
-                    //Rotation
-                    let dX = patrolPoints[iterator].x - patrolData.lastRecordedLocation.x;
-                    let dY = patrolPoints[iterator].y - patrolData.lastRecordedLocation.y;
-                    this.rotateToken(dX, dY, token);
+                let combatSetting = game.settings.get(TP.MODULENAME, "combatPause");
+                let combatStarted = false;
+                if(game.combats.active)
+                {
+                    combatStarted = game.combats.active.started;
                 }
-
                 if (patrolData.delayPeriod.length == patrolPoints.length) {
                     await sleep(patrolData.delayPeriod[iterator]);
                 } else await sleep(patrolData.delayPeriod[Math.floor(Math.random() * patrolData.delayPeriod.length)]); // Randomly selects a value within the delay period.
                 if (!this.tokenMap[token.id]) return;
-
+                
                 if (
                     patrolData.isWalking &&
                     !game.paused &&
-                    (!combatStarted || !(combatStarted && getProperty(game.combats.active, "started"))) &&
+                    (!combatSetting || !(combatSetting && combatStarted)) &&
                     !this._wasTokenMoved(token) &&
                     this._validatePatrol(token) &&
                     !patrolData.isDeleted
@@ -335,7 +290,7 @@ class TokenPatrollerManager {
                         await this.sayMessage(token);
                     }
                 } else {
-                    if (game.paused == true || combatStarted == true) {
+                    if (game.paused == true || combatSetting == true || !token.tokenDocument.document.getFlag(TP.MODULENAME, "makePatroller")) {
                         iterator = iterator - increment;
                     } else {
                         return true;
@@ -376,18 +331,18 @@ class TokenPatrollerManager {
                 await TP.audioHandler.updateAmbientPosition(plot.x, plot.y, this.tokenMap[token.id].audioId);
             }
 
-            await token.update(plot);
+            await token.document.update(plot);
 
             this._updatelastRecordedLocation(plot, token);
         } catch (error) {
-            if (this.debug) console.log(`Foundry-Patrol: Error in token navigation\n${error}`);
+            if (this.debug) console.log(`better-path-patrol: Error in token navigation\n${error}`);
         }
     }
 
     async _handleDelayPeriod(delay, tokenId) {
         const MILLISECONDS = 1000;
         const DEFAULT_SECONDS = 2;
-        const INVALID_NUMBER = 0;
+        const INVALID_NUMBER = -1;
         if (delay == null) {
             return;
         } else {
@@ -445,24 +400,8 @@ class TokenPatrollerManager {
                 delay[delay.length] = parseInt(csvValue);
             });
         }
-        if (this.debug) console.log(`Foundry-Patrol: Wait periods include: ${delay}`);
+        if (this.debug) console.log(`better-path-patrol: Wait periods include: ${delay}`);
         return delay;
-    }
-
-    rotateToken(dX, dY, token) {
-        //token.rotate(DEGREES)
-        if (dX < 0 && dY > 0) token.update({ rotation: 45 });
-        else if (dX < 0 && dY == 0) token.update({ rotation: 90 });
-        else if (dX < 0 && dY < 0) token.update({ rotation: 135 });
-        else if (dX == 0 && dY < 0) token.update({ rotation: 180 });
-        else if (dX > 0 && dY < 0) token.update({ rotation: 225 });
-        else if (dX > 0 && dY == 0) token.update({ rotation: 270 });
-        else if (dX > 0 && dY > 0) token.update({ rotation: 315 });
-        else if (dX == 0 && dY > 0) token.update({ rotation: 0 });
-        else if (dX != 0 && dY != 0)
-            if (this.debug)
-                //token.rotate(0);
-                console.log("Unexpected direction");
     }
 
     async linearWalk(generateEnd, tokenId) {
@@ -499,7 +438,7 @@ class TokenPatrollerManager {
         const GRID_SIZE = canvas.grid.size;
 
         if (src.x % GRID_SIZE != 0 && src.y % GRID_SIZE != 0 && dest.x % GRID_SIZE != 0 && dest.y % GRID_SIZE != 0) {
-            ui.notifications.error("Can't process linear walk of the given coordinates. Please send console output to @JacobMcAuley on discord");
+            ui.notifications.error("Can't process linear walk of the given coordinates. Please send console output to @Vauryx on discord");
             console.log(route);
             console.log(src);
             console.log(dest);
@@ -527,7 +466,7 @@ class TokenPatrollerManager {
             route.push({ x: src.x, y: src.y });
             return await this._generateLinearRoute(route, src, dest, xMod, yMod);
         } else {
-            if (this.debug) console.log("Foundry-Patrol: Error in generating Continuous route.");
+            if (this.debug) console.log("better-path-patrol: Error in generating Continuous route.");
         }
     }
 
@@ -690,21 +629,21 @@ class TokenPatrollerManager {
                 three: {
                     icon: '<i class="fas fa-times"></i>',
                     label: "Reject: I do not want to delete",
-                    callback: () => console.log("Foundry-Patrol: Mind changed, nothing deleted"),
+                    callback: () => console.log("better-path-patrol: Mind changed, nothing deleted"),
                 },
             },
             default: "Ack",
-            close: () => console.log("Foundry-Patrol: Prompt Closed"),
+            close: () => console.log("better-path-patrol: Prompt Closed"),
         });
         deletePrompt.render(true);
     }
 
     deleteToken(tokenId) {
-        if (!this.tokenMap[tokenId]) return;
-
+        if (!this.tokenMap[tokenId]) {
+            return;
+        }
         let audioId = this.tokenMap[tokenId].audioId;
         if (audioId) canvas.sounds.placeables.filter((entry) => entry.id == audioId)[0].delete();
-
         delete this.tokenMap[tokenId];
         TP.tokenPatroller._saveAndUpdate(this.tokenMap);
     }
@@ -723,26 +662,27 @@ class TokenPatrollerManager {
     livePlotUpdate(tokenId) {
         if (!this.tokenMap[tokenId]) return;
         this._removePlotDrawing(tokenId);
-        canvas.layers[this.GLOBAL_ROUTES_INDEX].deactivate();
+        canvas.getLayer("RoutesLayer").deactivate();
         this._displayPlot(tokenId, this.tokenMap[tokenId].inverted);
-        canvas.layers[this.GLOBAL_ROUTES_INDEX].draw();
+        canvas.getLayer("RoutesLayer").draw();
     }
 
     _removePlotDrawing(tokenId) {
-        let flags = canvas.scene.data.flags;
-        let plotIndex = flags.routes.findIndex(function (element) {
+        let routes = canvas.scene.getFlag(TP.MODULENAME, "routes");
+        let plotIndex = routes.findIndex(function (element) {
             return element.tokenId == tokenId;
         });
         if (plotIndex != -1) {
-            flags.routes.splice(plotIndex, 1);
-            canvas.scene.update({ flags: flags });
+            routes.splice(plotIndex, 1);
+            canvas.scene.setFlag(TP.MODULENAME, "routes", routes);
         }
     }
 
     async _displayPlot(tokenId, forwardsBackwards) {
-        let flags = canvas.scene.data.flags;
+        let routes = canvas.scene.getFlag(TP.MODULENAME, "routes");
+        let isPatroller = canvas.tokens.get(tokenId).document.getFlag(TP.MODULENAME, "makePatroller") ?? false;
         let plots = this._getPlotsFromId(tokenId);
-        if (!flags || !plots) return;
+        if (!routes || !plots || !isPatroller) return;
 
         if (plots.length > 0) {
             let tokenColor = null; //this._getGeneral(tokenId, 'color');
@@ -755,8 +695,8 @@ class TokenPatrollerManager {
                 fb: forwardsBackwards,
                 tokenId: tokenId,
             });
-            flags.routes.push(drawnPlot);
-            canvas.scene.update({ flags: flags });
+            routes.push(drawnPlot);
+            //await canvas.scene.setFlag(TP.MODULENAME, "routes", routes);
         }
     }
 
@@ -808,7 +748,7 @@ class TokenPatrollerManager {
             }
             return false;
         } catch (error) {
-            if (this.debug) console.log(`Foundry-patrol: Error in validating patrol status -> \n ${error}`);
+            if (this.debug) console.log(`better-path-patrol: Error in validating patrol status -> \n ${error}`);
             return true;
         }
     }
@@ -968,8 +908,218 @@ class TokenPatrollerManager {
     }
 }
 
+class PatrolDataManager {
+    constructor() { }
+
+    async dataInit() {
+        await this.createFileStructure();
+        let dataFile = await this._getPatrolDataFile();
+        if (!dataFile) return;
+        if (this._checkIfDataExists(dataFile)) return await this.getMap();
+        else await this.saveMap({});
+        return await this.getMap();
+    }
+
+    async createFileStructure() {
+        if (await this._checkIfFolderNameExists())
+            // Validation
+            return;
+        let folder = await Folder.create(
+            {
+                color: "",
+                name: "better-path-patrol",
+                parent: null,
+                sort: 100000,
+                type: "JournalEntry",
+            },
+            { temporary: false }
+        );
+        await JournalEntry.create({
+            folder: folder.id,
+            name: "Patrols",
+            type: "base",
+            types: "base",
+        });
+    }
+
+    async _checkIfFolderNameExists() {
+        return (await game.folders.contents.filter((entry) => entry.data.name == "better-path-patrol").length) > 0;
+    }
+
+    async _getPatrolDataFile() {
+        const folderId = (await this._getFolder()).id;
+        const tokenM = await game.journal.contents.filter((entry) => entry.data.name === "Patrols" && entry.data.document.folder.id == folderId);
+        if (tokenM.length > 1 || tokenM.length < 0) {
+            ui.notifications.error("Critical Failure: Multiple Patrol files");
+            return false;
+        }
+        return tokenM[0];
+    }
+
+    async _getFolder() {
+        let folder = await game.folders.contents.filter((entry) => entry.data.name == "better-path-patrol");
+        if (folder.length > 1 || folder.length < 0) {
+            ui.notifications.error("Critical failure in finding patrol database. More than one folder named better-path-patrol exists");
+            return false;
+        }
+        return folder[0];
+    }
+
+    _checkIfDataExists(dataFile) {
+        const content = getProperty(dataFile, "data.content");
+        if (!content) return false;
+        return content.length > 0;
+    }
+
+    async getMap() {
+        let dataFile = await this._getPatrolDataFile();
+        return JSON.parse(dataFile.data.content);
+    }
+
+    async saveMap(data) {
+        let folderId = (await this._getFolder()).id;
+        let dataFile = await this._getPatrolDataFile();
+        //console.log(dataFile);
+        return await dataFile.update({
+            content: JSON.stringify(data),
+            folder: folderId,
+        });
+    }
+}
+
+class RoutesLayer extends CanvasLayer {
+    constructor() {
+        super();
+        this.objects = null;
+    }
+
+    static get layerOptions() {
+        return {
+            canDragCreate: true,
+            snapToGrid: true,
+        };
+    }
+
+    /**
+     * Similar to below, error occurs in the event the GM swaps scenes while the token is displaying. Since this.sceneId is unavailable
+     * an error is thrown. Since this is the only known occurance of an error (by this module atleast), the error can be safely disregarded.
+     */
+    async draw() {
+        try {
+            await super.removeChildren().forEach((c) => c.destroy({ children: true }));
+            await super.draw();
+            this.objects = this.addChild(new PIXI.Container());
+
+            let objectData = canvas.scene.getFlag(TP.MODULENAME, "routes");;
+            for (let data of objectData) {
+                let obj = await this.drawObject(data);
+                this.objects.addChild(obj.drawing);
+            }
+        } catch (error) { }
+    }
+
+    activate() {
+        super.activate();
+    }
+
+    deactivate() {
+        super.deactivate();
+    }
+
+    async drawObject(data) {
+        let obj = new drawRoute(data);
+        return obj.showRoute();
+    }
+}
+
+class drawRoute {
+    /**
+     * Data is passed through as json from the corresponding token.
+     */
+    constructor(data) {
+        this.fb = data.fb;
+        this.points = JSON.parse(JSON.stringify(data.points));
+        this.dash = data.dash;
+        this.gap = data.gap;
+        this.offset = data.offset;
+        this.color = data.color;
+        this.drawing = new PIXI.Graphics();
+        this.tokenId = data.tokenId;
+    }
+
+    /**
+     * Used to created the dashed lines between differing plot points.
+     *
+     * Heavily inspired by ErikSom located here https://github.com/pixijs/pixi.js/issues/1333
+     * A man much smarter than I.
+     * @param {int} offset used for distance between lines.
+     */
+    _drawDashedLine(offset) {
+        //Method inspired by user:
+        var dashSize = 0;
+        var gapLength = 0;
+        const GRID_SIZE = canvas.grid.size == null ? 50 : canvas.grid.size / 2;
+        var pointOne, pointTwo;
+        if (offset > 0) {
+            let progressiveOffset = (this.dash + this.gap) * offset;
+            if (progressiveOffset < this.dash) dashSize = this.dash - progressiveOffset;
+            else gapLength = this.gap - (progressiveOffset - this.dash);
+        }
+
+        for (let i = this.points.length - 1; i >= 0; --i) {
+            pointOne = this.points[i];
+            if (i == 0) {
+                if (this.fb) pointTwo = this.points[i];
+                else pointTwo = this.points[this.points.length - 1]; // Forwards - backwards
+            } else pointTwo = this.points[i - 1];
+            let dX = pointTwo.x + GRID_SIZE - (pointOne.x + GRID_SIZE);
+            let dY = pointTwo.y + GRID_SIZE - (pointOne.y + GRID_SIZE);
+            let pointLen = Math.sqrt(Math.pow(dX, 2) + Math.pow(dY, 2));
+            let seperatePoints = { x: dX / pointLen, y: dY / pointLen };
+            let lineStart = 0;
+            this.drawing.moveTo(pointOne.x + GRID_SIZE + gapLength * seperatePoints.x, pointOne.y + GRID_SIZE + gapLength * seperatePoints.y);
+            while (lineStart <= pointLen) {
+                lineStart += gapLength;
+                if (dashSize > 0) lineStart += dashSize;
+                else lineStart += this.dash;
+
+                if (lineStart > pointLen) {
+                    dashSize = lineStart - pointLen;
+                    lineStart = pointLen;
+                } else {
+                    dashSize = 0;
+                }
+                this.drawing.lineTo(pointOne.x + GRID_SIZE + lineStart * seperatePoints.x, pointOne.y + GRID_SIZE + lineStart * seperatePoints.y);
+                lineStart += this.gap;
+                if (lineStart > pointLen && dashSize == 0) {
+                    gapLength = lineStart - pointLen;
+                } else {
+                    gapLength = 0;
+                    this.drawing.moveTo(pointOne.x + GRID_SIZE + lineStart * seperatePoints.x, pointOne.y + GRID_SIZE + lineStart * seperatePoints.y);
+                }
+            }
+        }
+    }
+
+    /**
+     * Responsible for the animation loop
+     * An error will be thrown when the token is deselected, but this is intended and has no effect on
+     * anything. The error is simply tossed.
+     */
+    showRoute() {
+        try {
+            this.drawing.clear();
+            this.drawing.lineStyle(5, this.color, 0.7); // Magic numbers: refer to lineStyle by PIXI for details.
+            var offsetInterval = this.offset;
+            this._drawDashedLine(((Date.now() % offsetInterval) + 1) / offsetInterval);
+            requestAnimationFrame(this.showRoute.bind(this));
+            return this;
+        } catch (err) { }
+    }
+}
+
 class TokenHud {
-    constructor() {}
+    constructor() { }
 
     static async HUD(token, html, data) {
         let tokenId = getProperty(token, "data._id");
@@ -993,7 +1143,7 @@ class TokenHud {
 
         const addPlotPoint = $(`
             <div class="control-icon" style="margin-left: 4px;"> \ 
-                <img src="modules/foundry-patrol/imgs/svg/map.svg" width="36" height="36" title="Add Point"> \
+                <img src="modules/better-path-patrol/imgs/svg/map.svg" width="36" height="36" title="Add Point"> \
             </div>
         `);
 
@@ -1014,14 +1164,14 @@ class TokenHud {
 
         let linearWalkHUD = $(`
             <div class="control-icon" style="margin-left: 4px;"> \ 
-                <img id="linearHUD" src="modules/foundry-patrol/imgs/svg/line.svg" width="36" height="36" title="Linear Walk"> \
+                <img id="linearHUD" src="modules/better-path-patrol/imgs/svg/line.svg" width="36" height="36" title="Linear Walk"> \
             </div>
         `);
 
         if (isLinear) {
             linearWalkHUD = $(`
                 <div class="lineWalk control-icon" style="margin-left: 4px;"> \ 
-                    <img id="linearHUD" src="modules/foundry-patrol/imgs/svg/linear.svg" width="36" height="36" title="Plot Walk"> \
+                    <img id="linearHUD" src="modules/better-path-patrol/imgs/svg/linear.svg" width="36" height="36" title="Plot Walk"> \
                 </div>
             `);
         }
@@ -1036,17 +1186,17 @@ class TokenHud {
             `<input class="control-icon"  style="margin-left: 4px;" type="text" id="patrolWait" value=${delayPeriod} name="patrolWait" title="Delay period">`
         );
 
-        if (game.user.isGM || game.settings.get("foundry-patrol", "enablePlayerPatrol")) {
-            if (!game.settings.get(TP.MODULENAME, "disableHUD")) {
-                html.find(".left").append(plotDiv);
-                html.find(".plotDiv").append(addPlotPoint);
-                html.find(".plotDiv").append(deletePlotPoint);
-                html.find(".plotDiv").append(plotDirection);
-                html.find(".left").append(patrolDiv);
-                html.find(".patrolDiv").append(linearWalkHUD);
-                html.find(".patrolDiv").append(patrolWalkHUD);
-                html.find(".patrolDiv").append(patrolDelayHUD);
-            }
+        if (game.user.isGM || game.settings.get("better-path-patrol", "enablePlayerPatrol")) {
+
+            html.find(".left").append(plotDiv);
+            html.find(".plotDiv").append(addPlotPoint);
+            html.find(".plotDiv").append(deletePlotPoint);
+            html.find(".plotDiv").append(plotDirection);
+            html.find(".left").append(patrolDiv);
+            html.find(".patrolDiv").append(linearWalkHUD);
+            html.find(".patrolDiv").append(patrolWalkHUD);
+            html.find(".patrolDiv").append(patrolDelayHUD);
+
 
             html.find(".right").append(patrolMenu);
 
@@ -1065,10 +1215,10 @@ class TokenHud {
                     ui.notifications.error("Linear path can only be used on square based maps.");
                     return;
                 }
-                if (src == "modules/foundry-patrol/imgs/svg/linear.svg") {
-                    ev.target.setAttribute("src", "modules/foundry-patrol/imgs/svg/line.svg");
+                if (src == "modules/better-path-patrol/imgs/svg/linear.svg") {
+                    ev.target.setAttribute("src", "modules/better-path-patrol/imgs/svg/line.svg");
                 } else {
-                    ev.target.setAttribute("src", "modules/foundry-patrol/imgs/svg/linear.svg");
+                    ev.target.setAttribute("src", "modules/better-path-patrol/imgs/svg/linear.svg");
                 }
                 if (patrolData) TP.tokenPatroller._setLinear(tokenId);
             });
@@ -1112,7 +1262,7 @@ class PatrolMenu extends FormApplication {
 
     static get defaultOptions() {
         const options = super.defaultOptions;
-        options.template = "modules/foundry-patrol/templates/patrol_menu.html";
+        options.template = "modules/better-path-patrol/scripts/patrol_menu.html";
         options.width = 600;
         options.height = "auto";
         options.title = "Patrol Menu Options";
@@ -1129,26 +1279,26 @@ class PatrolMenu extends FormApplication {
             lang:
                 game.modules.has("polyglot") && game.modules.get("polyglot").active
                     ? (() => {
-                          let actors = [];
-                          let known_languages = new Set();
-                          for (let token of [canvas.tokens.get(this.tokenId)]) {
-                              if (token.actor) actors.push(token.actor);
-                          }
-                          if (actors.length == 0 && game.user.character) actors.push(game.user.character);
-                          for (let actor of actors) {
-                              try {
-                                  // Don't duplicate the value in case it's a not an array
-                                  for (let lang of actor.data.data.traits.languages.value) known_languages.add(lang);
-                              } catch (err) {
-                                  // Maybe not dnd5e, pf1 or pf2e or corrupted actor data?
-                              }
-                          }
-                          if (known_languages.size == 0) {
-                              if (game.user.isGM) known_languages = new Set(Object.keys(PolyGlot.languages));
-                              else known_languages.add("common");
-                          }
-                          return known_languages;
-                      })()
+                        let actors = [];
+                        let known_languages = new Set();
+                        for (let token of [canvas.tokens.get(this.tokenId)]) {
+                            if (token.actor) actors.push(token.actor);
+                        }
+                        if (actors.length == 0 && game.user.character) actors.push(game.user.character);
+                        for (let actor of actors) {
+                            try {
+                                // Don't duplicate the value in case it's a not an array
+                                for (let lang of actor.data.data.traits.languages.value) known_languages.add(lang);
+                            } catch (err) {
+                                // Maybe not dnd5e, pf1 or pf2e or corrupted actor data?
+                            }
+                        }
+                        if (known_languages.size == 0) {
+                            if (game.user.isGM) known_languages = new Set(Object.keys(PolyGlot.languages));
+                            else known_languages.add("common");
+                        }
+                        return known_languages;
+                    })()
                     : "common",
             audioPath: tokenData.audioPath,
             audioLocal: tokenData.audioLocal,
@@ -1239,9 +1389,9 @@ class PatrolMenu extends FormApplication {
     async _handleAudioData(formData) {
         const audioPath = formData.audioPath;
         const audioRadius = formData.audioRadius;
-        const audioVolume = formData.audioVolume;
+        const audioVolume = formData.audioVolume ?? 0.5;
         const audioLocal = formData.audioLocal;
-
+        console.log(audioPath);
         if (
             TP.audioHandler.hasAudio(this.tokenId) &&
             (audioPath != TP.tokenPatroller.getAudioPath(this.tokenId) ||
@@ -1251,7 +1401,7 @@ class PatrolMenu extends FormApplication {
         ) {
             TP.audioHandler.updateAudioInfo(TP.tokenPatroller.getAudioID(this.tokenId), audioPath, audioLocal, audioRadius, audioVolume);
             return;
-        } else if (TP.audioHandler.hasAudio(this.tokenId) || audioPath.length == 0 || !formData.audioRadius || !formData.audioVolume) return;
+        } else if (TP.audioHandler.hasAudio(this.tokenId) || audioPath.length == 0 || !audioRadius || !audioVolume) return;
 
         //
 
@@ -1320,308 +1470,19 @@ class PatrolMenu extends FormApplication {
         if (!form.name.value) form.name.value = field.value.split("/").pop().split(".").shift();
     }
 }
-/**
- * Basically taken from Foundry.js
- */
-
-class RoutesLayer extends CanvasLayer {
-    constructor() {
-        super();
-        this.objects = null;
-    }
-
-    static get layerOptions() {
-        return {
-            canDragCreate: true,
-            snapToGrid: true,
-        };
-    }
-
-    /**
-     * Similar to below, error occurs in the event the GM swaps scenes while the token is displaying. Since this.sceneId is unavailable
-     * an error is thrown. Since this is the only known occurance of an error (by this module atleast), the error can be safely disregarded.
-     */
-    async draw() {
-        try {
-            await super.removeChildren().forEach((c) => c.destroy({ children: true }));
-            await super.draw();
-            this.objects = this.addChild(new PIXI.Container());
-
-            let objectData = canvas.scene.data.flags.routes;
-            for (let data of objectData) {
-                let obj = await this.drawObject(data);
-                this.objects.addChild(obj.drawing);
-            }
-        } catch (error) {}
-    }
-
-    activate() {
-        super.activate();
-    }
-
-    deactivate() {
-        super.deactivate();
-    }
-
-    async drawObject(data) {
-        let obj = new drawRoute(data);
-        return obj.showRoute();
-    }
-}
-
-/**
- * Custom drawing used to display the lines that make up the patrol route.
- */
-class drawRoute extends PlaceableObject {
-    /**
-     * Data is passed through as json from the corresponding token.
-     */
-    constructor(data) {
-        super();
-        this.fb = data.fb;
-        this.points = JSON.parse(JSON.stringify(data.points));
-        this.dash = data.dash;
-        this.gap = data.gap;
-        this.offset = data.offset;
-        this.color = data.color;
-        this.drawing = new PIXI.Graphics();
-        this.tokenId = data.tokenId;
-    }
-
-    /**
-     * Used to created the dashed lines between differing plot points.
-     *
-     * Heavily inspired by ErikSom located here https://github.com/pixijs/pixi.js/issues/1333
-     * A man much smarter than I.
-     * @param {int} offset used for distance between lines.
-     */
-    _drawDashedLine(offset) {
-        //Method inspired by user:
-        var dashSize = 0;
-        var gapLength = 0;
-        const GRID_SIZE = canvas.grid.size == null ? 50 : canvas.grid.size / 2;
-        var pointOne, pointTwo;
-        if (offset > 0) {
-            let progressiveOffset = (this.dash + this.gap) * offset;
-            if (progressiveOffset < this.dash) dashSize = this.dash - progressiveOffset;
-            else gapLength = this.gap - (progressiveOffset - this.dash);
-        }
-
-        for (let i = this.points.length - 1; i >= 0; --i) {
-            pointOne = this.points[i];
-            if (i == 0) {
-                if (this.fb) pointTwo = this.points[i];
-                else pointTwo = this.points[this.points.length - 1]; // Forwards - backwards
-            } else pointTwo = this.points[i - 1];
-            let dX = pointTwo.x + GRID_SIZE - (pointOne.x + GRID_SIZE);
-            let dY = pointTwo.y + GRID_SIZE - (pointOne.y + GRID_SIZE);
-            let pointLen = Math.sqrt(Math.pow(dX, 2) + Math.pow(dY, 2));
-            let seperatePoints = { x: dX / pointLen, y: dY / pointLen };
-            let lineStart = 0;
-            this.drawing.moveTo(pointOne.x + GRID_SIZE + gapLength * seperatePoints.x, pointOne.y + GRID_SIZE + gapLength * seperatePoints.y);
-            while (lineStart <= pointLen) {
-                lineStart += gapLength;
-                if (dashSize > 0) lineStart += dashSize;
-                else lineStart += this.dash;
-
-                if (lineStart > pointLen) {
-                    dashSize = lineStart - pointLen;
-                    lineStart = pointLen;
-                } else {
-                    dashSize = 0;
-                }
-                this.drawing.lineTo(pointOne.x + GRID_SIZE + lineStart * seperatePoints.x, pointOne.y + GRID_SIZE + lineStart * seperatePoints.y);
-                lineStart += this.gap;
-                if (lineStart > pointLen && dashSize == 0) {
-                    gapLength = lineStart - pointLen;
-                } else {
-                    gapLength = 0;
-                    this.drawing.moveTo(pointOne.x + GRID_SIZE + lineStart * seperatePoints.x, pointOne.y + GRID_SIZE + lineStart * seperatePoints.y);
-                }
-            }
-        }
-    }
-
-    /**
-     * Responsible for the animation loop
-     * An error will be thrown when the token is deselected, but this is intended and has no effect on
-     * anything. The error is simply tossed.
-     */
-    showRoute() {
-        try {
-            this.drawing.clear();
-            this.drawing.lineStyle(5, this.color, 0.7); // Magic numbers: refer to lineStyle by PIXI for details.
-            var offsetInterval = this.offset;
-            this._drawDashedLine(((Date.now() % offsetInterval) + 1) / offsetInterval);
-            requestAnimationFrame(this.showRoute.bind(this));
-            return this;
-        } catch (err) {}
-    }
-}
-
-/**
- * Logs the keys by the GM.
- * This is used for workflow increase
- */
-
-class RoutesKeyLogger {
-    constructor() {
-        this.maps = {};
-        this.checkKeys();
-        // List of the valid keys to be mapped.
-        this.keys = {
-            shift: 16,
-            c: 67,
-            r: 82,
-            g: 71,
-            h: 72,
-            q: 81,
-            t: 84,
-            one: 49,
-        };
-    }
-
-    /**
-     * Gets key up and key down, then runs the requested function if the proper key is down.
-     * Key One, is used for if the goal is only a single token.
-     */
-    checkKeys() {
-        let fired = false;
-
-        window.addEventListener("keydown", async (e) => {
-            if (fired) void 0;
-            else if (
-                window.Azzu.SettingsTypes.KeyBinding.eventIsForBinding(
-                    e,
-                    window.Azzu.SettingsTypes.KeyBinding.parse(game.settings.get("foundry-patrol", "startRoute"))
-                )
-            ) {
-                this._startAllRoutes();
-                fired = true;
-            } else if (
-                window.Azzu.SettingsTypes.KeyBinding.eventIsForBinding(
-                    e,
-                    window.Azzu.SettingsTypes.KeyBinding.parse(game.settings.get("foundry-patrol", "stopRoute"))
-                )
-            ) {
-                this._haltAllRoutes();
-                fired = true;
-            } else if (
-                window.Azzu.SettingsTypes.KeyBinding.eventIsForBinding(
-                    e,
-                    window.Azzu.SettingsTypes.KeyBinding.parse(game.settings.get("foundry-patrol", "addTokenPoint"))
-                )
-            ) {
-                this._addPlotSelectedToken();
-                fired = true;
-            } else if (
-                window.Azzu.SettingsTypes.KeyBinding.eventIsForBinding(
-                    e,
-                    window.Azzu.SettingsTypes.KeyBinding.parse(game.settings.get("foundry-patrol", "clearRoute"))
-                )
-            ) {
-                this._clearAllRoutes();
-                fired = true;
-            } else if (
-                window.Azzu.SettingsTypes.KeyBinding.eventIsForBinding(
-                    e,
-                    window.Azzu.SettingsTypes.KeyBinding.parse(game.settings.get("foundry-patrol", "generateMacro"))
-                )
-            ) {
-                await this._generateMacro();
-                this.fired = true;
-            }
-        });
-
-        window.addEventListener("keyup", (e) => {
-            fired = false;
-        });
-    }
-
-    /**
-     * Provides interface into token for adding a plot.
-     */
-    _addPlotSelectedToken() {
-        for (let i = 0; i < canvas.tokens.controlled.length; ++i) {
-            let token = canvas.tokens.controlled[i];
-            TP.tokenPatroller.addPlotPoint(token.id);
-        }
-    }
-
-    /**
-     *  The following _functions all run the same general loop, in order to reduce code redundancy.
-     *  Takes selectedToggle (which means only one token will be affected on true), and runs the general loop with the
-     *  requested token Patrols function interface.
-     */
-
-    _haltAllRoutes() {
-        let tokens = canvas.tokens.controlled.length > 0 ? canvas.tokens.controlled : canvas.tokens.ownedTokens;
-        for (let i = 0; i < tokens.length; ++i) {
-            TP.tokenPatroller._disableWalking(tokens[i]);
-        }
-        ui.notifications.info("Routes halted for this scene");
-    }
-
-    _startAllRoutes() {
-        let tokens = canvas.tokens.controlled.length > 0 ? canvas.tokens.controlled : canvas.tokens.ownedTokens;
-        for (let i = 0; i < tokens.length; ++i) {
-            TP.tokenPatroller.startPatrol(undefined, tokens[i].id);
-        }
-        ui.notifications.info("Routes started for this scene");
-    }
-
-    _clearAllRoutes() {
-        let tokens = canvas.tokens.controlled.length > 0 ? canvas.tokens.controlled : canvas.tokens.ownedTokens;
-        for (let i = 0; i < tokens.length; ++i) {
-            TP.tokenPatroller.removeTokenRoute(tokens[i].id, true);
-        }
-        ui.notifications.info("Routes cleared for this scene");
-    }
-
-    _resetAllColors() {
-        this._generalLoop(Patrols.prototype._resetColor, selectedToggle);
-        ui.notifications.info("Colors changed for this scene");
-    }
-
-    async _generateMacro() {
-        let tokenIds = [];
-        let selectedTokens = canvas.tokens.controlled; // While less efficient, prevents accidental misclicks resulting in an empty array.
-        for (let i = 0; i < selectedTokens.length; ++i) {
-            tokenIds.push('"' + selectedTokens[i].id + '"');
-        }
-        if (tokenIds.length == 0) return -1;
-        let command = `[${tokenIds.toString()}].forEach(token => {
-            TP.tokenPatroller.startPatrol("2", token); 
-            /*
-            Where the 2 is, is where you want to put the delay. 
-            Comma seperated for multiple.
-            EX: TP.tokenPatroller.startPatrol("2, 4, 12", token); 
-            If you want a macro to stop the patrols, 
-            swap startPatrol for stopPatrol and remove the delay.
-            EX: TP.tokenPatroller.startPatrol(token);
-            */
-        })`;
-        await Macro.create(
-            {
-                folder: null,
-                name: "Patrol Route Macro (Make a better name)",
-                type: "script",
-                command: command,
-            },
-            { renderSheet: true }
-        );
-    }
-}
 
 class VisionHandler {
-    constructor() {}
+    constructor() { }
 
     async evaluateSight(tokenId) {
         if (!TP.tokenPatroller.getVisionChecking(tokenId)) return;
 
         const guardToken = canvas.tokens.get(tokenId);
-        const sightRadius = guardToken.dimRadius >= guardToken.brightRadius ? guardToken.dimRadius : guardToken.brightRadius;
-
+        let sightRadius = guardToken.dimRadius >= guardToken.brightRadius ? guardToken.dimRadius : guardToken.brightRadius;
+        if(canvas.scene.data.globalLight)
+        {
+            sightRadius = 99;
+        }
         this._handlePC(tokenId, guardToken.center, sightRadius, guardToken.data.sightAngle, guardToken.data.rotation);
 
         if (TP.tokenPatroller.getOtherVisionChecking(tokenId) && TP.tokenPatroller.getEnableQuotes(tokenId))
@@ -1667,6 +1528,7 @@ class VisionHandler {
 
     async _checkVision(sight, center, x, y, sightAngle, rotation) {
         const { los, fov } = SightLayer.computeSight(center, sight, { angle: sightAngle, rotation: rotation });
+        console.log(fov);
         return fov.contains(x, y);
     }
 
@@ -1684,7 +1546,7 @@ class VisionHandler {
 
     _ownerIsPC(actor) {
         for (const user of game.users) {
-            if (!user.isGM && actor.hasPerm(user, "OWNER")) {
+            if (!user.isGM && actor.testUserPermission(user, "OWNER")) {
                 return true;
             }
         }
@@ -1694,15 +1556,10 @@ class VisionHandler {
 }
 
 class SpeechHandler {
-    constructor() {}
+    constructor() { }
 
     async createChat(tokenId, message) {
         if (message == undefined) return;
-        /*
-        let tokenLanguage = TP.tokenPatroller.getLanguage(tokenId) || "common";
-        
-        */
-
         let tokenLanguage = TP.tokenPatroller.getLanguage(tokenId) || "common";
         let polyglotOld = ui.chat.element.find("select[name=polyglot-language]").val();
 
@@ -1717,7 +1574,6 @@ class SpeechHandler {
                 speaker: speaker,
                 user: game.userId,
                 content: message,
-                type: CHAT_MESSAGE_TYPES.IC,
                 flags: polyglotInfo,
             },
             { chatBubble: true }
@@ -1762,7 +1618,7 @@ class SpeechHandler {
 }
 
 class AudioHandler {
-    constructor() {}
+    constructor() { }
 
     async createPatrolAudio(tokenId, file, audioLocal, radius, volume) {
         const halfGrid = canvas.grid.size / 2;
@@ -1802,6 +1658,7 @@ class AudioHandler {
     }
 }
 
+
 Handlebars.registerHelper("determineChecked", function (currentValue) {
     return currentValue ? 'checked="checked"' : "";
 });
@@ -1810,6 +1667,4 @@ Handlebars.registerHelper("determineSelected", function (currentValue, tokenId) 
     return currentValue == TP.tokenPatroller.getLanguage(tokenId) ? 'selected="selected"' : "";
 });
 
-TokenPatrollerInitalizer.initialize();
-
-//canvas.sight.sources.vision.forEach(test=>console.log(test["fov"].contains(y.x, y.y))) Where y is the token
+TokenPatrollerInitializer.initialize();
