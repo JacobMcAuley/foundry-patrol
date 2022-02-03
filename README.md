@@ -1,10 +1,5 @@
 # IMPORTANT NOTE
-
-As of January, a new version of Foundry Patrol is being developed.
-This version of the module has not been maintained for a while now for a myriad of reasons (cough 2020 cough). 
-I've learned a lot since I first made this, and I hope to put that knowledge to good use in my future version.
-
-If you choose to download the module anyway, you do so at your own risk.
+This project is no longer being developed or worked on.
 
 
 # Foundry Token Patrol
